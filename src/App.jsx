@@ -21,7 +21,7 @@ function App() {
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-6">
       <div className="max-w-2xl mx-auto bg-white rounded-xl shadow-lg p-6">
         <h1 className="text-3xl font-bold text-gray-800 mb-8 text-center">
-          Voice Assistent
+          Röstassistent
         </h1>
 
         <form onSubmit={handleSubmit} className="mb-6 space-y-4">
@@ -30,7 +30,7 @@ function App() {
               type="text"
               value={newTodo}
               onChange={(e) => setNewTodo(e.target.value)}
-              placeholder="Add a new todo..."
+              placeholder="Lägg till en ny att göra-post..."
               className="flex-1 p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
             <VoiceRecorder onRecordingComplete={setCurrentAudioUrl} />
@@ -46,7 +46,7 @@ function App() {
             type="submit"
             className="w-full bg-blue-500 text-white py-3 rounded-lg hover:bg-blue-600 transition-colors"
           >
-            Add Todo
+            Lägg till att göra-post
           </button>
         </form>
 
