@@ -1,20 +1,63 @@
 import React, { useState } from 'react';
-import { Trash2, Check, Volume2 } from 'lucide-react';
+import { Trash2, Check, Volume2, Mail } from 'lucide-react';
 import { VoiceRecorder } from './components/VoiceRecorder';
+import { EmailVerificationModal } from './components/EmailVerificationModal';
 import { useTodoStore } from './store';
+import { createTodo } from './api';
 
 function App() {
   const [newTodo, setNewTodo] = useState('');
   const [currentAudioUrl, setCurrentAudioUrl] = useState(null);
+  const [transcription, setTranscription] = useState('');
+  const [detectedEmail, setDetectedEmail] = useState(null);
+  const [isVerifyingEmail, setIsVerifyingEmail] = useState(false);
+  const [verifiedEmails, setVerifiedEmails] = useState([]);
   const { todos, addTodo, toggleTodo, deleteTodo } = useTodoStore();
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     if (newTodo.trim()) {
-      addTodo(newTodo, currentAudioUrl || undefined);
-      setNewTodo('');
-      setCurrentAudioUrl(null);
+      try {
+        // För att skicka med e-post om sådan finns
+        const todoData = {
+          text: newTodo,
+          audioUrl: currentAudioUrl || undefined,
+          email: verifiedEmails.length > 0 ? verifiedEmails[verifiedEmails.length - 1] : undefined
+        };
+        
+        // Skicka till backend
+        const response = await createTodo(todoData);
+        
+        // Lägg till i lokal state
+        addTodo(newTodo, currentAudioUrl || undefined, todoData.email);
+        
+        // Återställ formuläret
+        resetForm();
+      } catch (error) {
+        console.error('Failed to create todo:', error);
+      }
     }
+  };
+
+  const resetForm = () => {
+    setNewTodo('');
+    setCurrentAudioUrl(null);
+    setTranscription('');
+    setDetectedEmail(null);
+  };
+
+  const handleEmailDetected = (email) => {
+    setDetectedEmail(email);
+    setIsVerifyingEmail(true);
+  };
+
+  const handleConfirmEmail = (email) => {
+    setVerifiedEmails([...verifiedEmails, email]);
+    setIsVerifyingEmail(false);
+  };
+
+  const handleCancelEmailVerification = () => {
+    setIsVerifyingEmail(false);
   };
 
   return (
@@ -33,15 +76,35 @@ function App() {
               placeholder="Lägg till en ny att göra-post..."
               className="flex-1 p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
-            <VoiceRecorder onRecordingComplete={setCurrentAudioUrl} />
+            <VoiceRecorder 
+              onRecordingComplete={setCurrentAudioUrl} 
+              onTranscriptionReceived={setTranscription}
+              onEmailDetected={handleEmailDetected}
+            />
           </div>
+          
+          {transcription && (
+            <div className="p-3 bg-gray-50 rounded-lg">
+              <h3 className="font-medium text-gray-700 mb-1">Transkribering:</h3>
+              <p className="text-gray-600">{transcription}</p>
+            </div>
+          )}
+          
           {currentAudioUrl && (
             <div className="flex items-center gap-2 text-sm text-gray-600">
               <Volume2 className="w-4 h-4" />
-              <span>Voice message recorded</span>
+              <span>Röstinspelning:</span>
               <audio src={currentAudioUrl} controls className="h-8" />
             </div>
           )}
+          
+          {verifiedEmails.length > 0 && (
+            <div className="flex items-center gap-2 text-sm text-green-600 bg-green-50 p-2 rounded-lg">
+              <Mail className="w-4 h-4" />
+              <span>Verifierad e-post: {verifiedEmails[verifiedEmails.length - 1]}</span>
+            </div>
+          )}
+          
           <button
             type="submit"
             className="w-full bg-blue-500 text-white py-3 rounded-lg hover:bg-blue-600 transition-colors"
@@ -73,9 +136,17 @@ function App() {
               >
                 {todo.text}
               </span>
+              
+              {todo.email && (
+                <span className="text-xs bg-blue-100 text-blue-800 py-1 px-2 rounded-full">
+                  {todo.email}
+                </span>
+              )}
+              
               {todo.audioUrl && (
                 <audio src={todo.audioUrl} controls className="h-8" />
               )}
+              
               <button
                 onClick={() => deleteTodo(todo.id)}
                 className="text-red-500 hover:text-red-600"
@@ -86,6 +157,15 @@ function App() {
           ))}
         </ul>
       </div>
+      
+      {isVerifyingEmail && detectedEmail && (
+        <EmailVerificationModal 
+          email={detectedEmail} 
+          transcription={transcription}
+          onConfirm={handleConfirmEmail}
+          onCancel={handleCancelEmailVerification}
+        />
+      )}
     </div>
   );
 }
