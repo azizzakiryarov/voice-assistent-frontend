@@ -51,7 +51,7 @@ export const fetchTodos = async () => {
 
 export const createTodo = async (todo) => {
   try {
-    const response = await axios.post(`${API_URL}/text`, todo);
+    const response = await axios.post(`${API_URL}/todos`, todo);
     return response.data;
   } catch (error) {
     console.error('Error creating todo:', error);

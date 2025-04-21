@@ -1,35 +1,65 @@
-import React, { useState } from 'react';
-import { Trash2, Check, Volume2, Mail } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Trash2, Check, Volume2, Mail, Calendar } from 'lucide-react';
 import { VoiceRecorder } from './components/VoiceRecorder';
 import { EmailVerificationModal } from './components/EmailVerificationModal';
-import { useTodoStore } from './store';
-import { createTodo } from './api';
+import { fetchTodos, createTodo, updateTodo, deleteTodo } from './api';
 
 function App() {
   const [newTodo, setNewTodo] = useState('');
+  const [dueDate, setDueDate] = useState('');
+  const [showDatePicker, setShowDatePicker] = useState(false);
   const [currentAudioUrl, setCurrentAudioUrl] = useState(null);
   const [transcription, setTranscription] = useState('');
   const [detectedEmail, setDetectedEmail] = useState(null);
   const [isVerifyingEmail, setIsVerifyingEmail] = useState(false);
   const [verifiedEmails, setVerifiedEmails] = useState([]);
-  const { todos, addTodo, toggleTodo, deleteTodo } = useTodoStore();
+  const [todos, setTodos] = useState([]);
+  const [isLoading, setIsLoading] = useState(false);
+
+  // Hämta todos vid komponentens första rendering
+  useEffect(() => {
+    loadTodos();
+  }, []);
+
+  const loadTodos = async () => {
+    try {
+      setIsLoading(true);
+      const todosData = await fetchTodos();
+      setTodos(todosData);
+    } catch (error) {
+      console.error('Failed to load todos:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (newTodo.trim()) {
       try {
-        // För att skicka med e-post om sådan finns
+        // Förbereda todo-data enligt backend DTO struktur
         const todoData = {
-          text: newTodo,
-          audioUrl: currentAudioUrl || undefined,
-          email: verifiedEmails.length > 0 ? verifiedEmails[verifiedEmails.length - 1] : undefined
+          description: newTodo,
+          dueDate: dueDate || null,
+          completed: false
         };
         
-        // Skicka till backend
-        const response = await createTodo(todoData);
+        // Om vi har e-post eller ljudurl, lägg till som extra egenskaper
+        if (currentAudioUrl) {
+          todoData.audioUrl = currentAudioUrl;
+        }
         
-        // Lägg till i lokal state
-        addTodo(newTodo, currentAudioUrl || undefined, todoData.email);
+        if (verifiedEmails.length > 0) {
+          todoData.email = verifiedEmails[verifiedEmails.length - 1];
+        }
+        
+        console.log('Sending todo data:', todoData);
+        
+        // Skicka till backend
+        const createdTodo = await createTodo(todoData);
+        
+        // Uppdatera den lokala listan med todos
+        setTodos(prevTodos => [...prevTodos, createdTodo]);
         
         // Återställ formuläret
         resetForm();
@@ -39,8 +69,46 @@ function App() {
     }
   };
 
+  const handleToggleTodo = async (id, completed) => {
+    try {
+      // Uppdatera i UI först för omedelbar feedback
+      setTodos(prevTodos => 
+        prevTodos.map(todo => 
+          todo.id === id ? { ...todo, completed: !completed } : todo
+        )
+      );
+      
+      // Skicka uppdatering till API
+      await updateTodo(id, { completed: !completed });
+    } catch (error) {
+      console.error('Failed to toggle todo:', error);
+      // Återställ vid fel
+      setTodos(prevTodos => 
+        prevTodos.map(todo => 
+          todo.id === id ? { ...todo, completed } : todo
+        )
+      );
+    }
+  };
+
+  const handleDeleteTodo = async (id) => {
+    try {
+      // Ta bort från UI först för omedelbar feedback
+      setTodos(prevTodos => prevTodos.filter(todo => todo.id !== id));
+      
+      // Skicka borttagning till API
+      await deleteTodo(id);
+    } catch (error) {
+      console.error('Failed to delete todo:', error);
+      // Återställ vid fel genom att hämta todos på nytt
+      loadTodos();
+    }
+  };
+
   const resetForm = () => {
     setNewTodo('');
+    setDueDate('');
+    setShowDatePicker(false);
     setCurrentAudioUrl(null);
     setTranscription('');
     setDetectedEmail(null);
@@ -58,6 +126,27 @@ function App() {
 
   const handleCancelEmailVerification = () => {
     setIsVerifyingEmail(false);
+  };
+
+  // Formatera datum för visning
+  const formatDate = (dateString) => {
+    if (!dateString) return '';
+    const date = new Date(dateString);
+    return date.toLocaleDateString('sv-SE');
+  };
+
+  // Beräkna om ett datum är passerat
+  const isOverdue = (dateString) => {
+    if (!dateString) return false;
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const dueDate = new Date(dateString);
+    return dueDate < today;
+  };
+
+  // Visa datumväljaren
+  const toggleDatePicker = () => {
+    setShowDatePicker(!showDatePicker);
   };
 
   return (
@@ -81,6 +170,27 @@ function App() {
               onTranscriptionReceived={setTranscription}
               onEmailDetected={handleEmailDetected}
             />
+          </div>
+          
+          <div className="flex items-center gap-2">
+            <button 
+              type="button"
+              onClick={toggleDatePicker}
+              className="flex items-center gap-1 text-blue-600 hover:text-blue-800 py-1 px-3 bg-blue-50 rounded-lg"
+            >
+              <Calendar className="w-4 h-4" />
+              {dueDate ? `Slutdatum: ${formatDate(dueDate)}` : "Lägg till slutdatum"}
+            </button>
+            
+            {showDatePicker && (
+              <input
+                type="date"
+                value={dueDate}
+                onChange={(e) => setDueDate(e.target.value)}
+                className="p-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                min={new Date().toISOString().split('T')[0]}
+              />
+            )}
           </div>
           
           {transcription && (
@@ -113,49 +223,68 @@ function App() {
           </button>
         </form>
 
-        <ul className="space-y-3">
-          {todos.map((todo) => (
-            <li
-              key={todo.id}
-              className="flex items-center gap-4 p-4 bg-gray-50 rounded-lg"
-            >
-              <button
-                onClick={() => toggleTodo(todo.id)}
-                className={`flex-shrink-0 w-6 h-6 rounded-full border-2 ${
-                  todo.completed
-                    ? 'bg-green-500 border-green-500'
-                    : 'border-gray-300'
-                } flex items-center justify-center`}
+        {isLoading ? (
+          <div className="text-center py-4 text-gray-500">Laddar todos...</div>
+        ) : (
+          <ul className="space-y-3">
+            {todos.map((todo) => (
+              <li
+                key={todo.id}
+                className="flex items-center gap-4 p-4 bg-gray-50 rounded-lg"
               >
-                {todo.completed && <Check className="w-4 h-4 text-white" />}
-              </button>
-              <span
-                className={`flex-1 ${
-                  todo.completed ? 'line-through text-gray-500' : 'text-gray-800'
-                }`}
-              >
-                {todo.text}
-              </span>
-              
-              {todo.email && (
-                <span className="text-xs bg-blue-100 text-blue-800 py-1 px-2 rounded-full">
-                  {todo.email}
-                </span>
-              )}
-              
-              {todo.audioUrl && (
-                <audio src={todo.audioUrl} controls className="h-8" />
-              )}
-              
-              <button
-                onClick={() => deleteTodo(todo.id)}
-                className="text-red-500 hover:text-red-600"
-              >
-                <Trash2 className="w-5 h-5" />
-              </button>
-            </li>
-          ))}
-        </ul>
+                <button
+                  onClick={() => handleToggleTodo(todo.id, todo.completed)}
+                  className={`flex-shrink-0 w-6 h-6 rounded-full border-2 ${
+                    todo.completed
+                      ? 'bg-green-500 border-green-500'
+                      : 'border-gray-300'
+                  } flex items-center justify-center`}
+                >
+                  {todo.completed && <Check className="w-4 h-4 text-white" />}
+                </button>
+                <div className="flex-1">
+                  <span
+                    className={`block ${
+                      todo.completed ? 'line-through text-gray-500' : 'text-gray-800'
+                    }`}
+                  >
+                    {todo.description}
+                  </span>
+                  
+                  {todo.dueDate && (
+                    <span 
+                      className={`text-xs ${
+                        isOverdue(todo.dueDate) && !todo.completed 
+                          ? 'text-red-600' 
+                          : 'text-gray-500'
+                      }`}
+                    >
+                      <Calendar className="w-3 h-3 inline mr-1" />
+                      {formatDate(todo.dueDate)}
+                      {isOverdue(todo.dueDate) && !todo.completed && " (Försenad)"}
+                    </span>
+                  )}
+                </div>
+                
+                {todo.description && (
+                  <span className="text-xs bg-blue-100 text-blue-800 py-1 px-2 rounded-full">
+                    {todo.description}
+                  </span>
+                )}
+                
+                <button
+                  onClick={() => handleDeleteTodo(todo.id)}
+                  className="text-red-500 hover:text-red-600"
+                >
+                  <Trash2 className="w-5 h-5" />
+                </button>
+              </li>
+            ))}
+            {todos.length === 0 && (
+              <p className="text-center text-gray-500 py-4">Inga att göra-poster ännu</p>
+            )}
+          </ul>
+        )}
       </div>
       
       {isVerifyingEmail && detectedEmail && (
