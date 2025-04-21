@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Trash2, Check, Volume2, Mail, Calendar } from 'lucide-react';
+import { Trash2, Check, Volume2, Mail, Calendar, X, AlertCircle, CheckCircle, Info } from 'lucide-react';
 import { VoiceRecorder } from './components/VoiceRecorder';
 import { EmailVerificationModal } from './components/EmailVerificationModal';
 import { fetchTodos, createTodo, updateTodo, deleteTodo } from './api';
@@ -15,19 +15,46 @@ function App() {
   const [verifiedEmails, setVerifiedEmails] = useState([]);
   const [todos, setTodos] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
+  
+  // Notification state
+  const [notifications, setNotifications] = useState([]);
 
   // Hämta todos vid komponentens första rendering
   useEffect(() => {
     loadTodos();
   }, []);
 
+  // Remove notifications after timeout
+  useEffect(() => {
+    if (notifications.length > 0) {
+      const timer = setTimeout(() => {
+        setNotifications(prev => prev.slice(1));
+      }, 5000);
+      
+      return () => clearTimeout(timer);
+    }
+  }, [notifications]);
+
+  // Function to add a notification
+  const addNotification = (message, type = 'info') => {
+    const id = Date.now();
+    setNotifications(prev => [...prev, { id, message, type }]);
+  };
+
+  // Function to remove a notification
+  const removeNotification = (id) => {
+    setNotifications(prev => prev.filter(notification => notification.id !== id));
+  };
+
   const loadTodos = async () => {
     try {
       setIsLoading(true);
       const todosData = await fetchTodos();
       setTodos(todosData);
+      addNotification('Alla att göra-poster har laddats', 'info');
     } catch (error) {
       console.error('Failed to load todos:', error);
+      addNotification('Kunde inte ladda att göra-poster', 'error');
     } finally {
       setIsLoading(false);
     }
@@ -53,19 +80,23 @@ function App() {
           todoData.email = verifiedEmails[verifiedEmails.length - 1];
         }
         
-        console.log('Sending todo data:', todoData);
-        
         // Skicka till backend
         const createdTodo = await createTodo(todoData);
         
         // Uppdatera den lokala listan med todos
         setTodos(prevTodos => [...prevTodos, createdTodo]);
         
+        // Visa bekräftelse
+        addNotification('Ny att göra-post har skapats', 'success');
+        
         // Återställ formuläret
         resetForm();
       } catch (error) {
         console.error('Failed to create todo:', error);
+        addNotification('Kunde inte skapa att göra-post', 'error');
       }
+    } else {
+      addNotification('Du måste ange en beskrivning', 'warning');
     }
   };
 
@@ -80,6 +111,10 @@ function App() {
       
       // Skicka uppdatering till API
       await updateTodo(id, { completed: !completed });
+      addNotification(
+        `Markerad som ${!completed ? 'slutförd' : 'ej slutförd'}`, 
+        'success'
+      );
     } catch (error) {
       console.error('Failed to toggle todo:', error);
       // Återställ vid fel
@@ -88,20 +123,26 @@ function App() {
           todo.id === id ? { ...todo, completed } : todo
         )
       );
+      addNotification('Kunde inte uppdatera status', 'error');
     }
   };
 
   const handleDeleteTodo = async (id) => {
     try {
+      // Hitta todo för meddelande
+      const todoToDelete = todos.find(todo => todo.id === id);
+      
       // Ta bort från UI först för omedelbar feedback
       setTodos(prevTodos => prevTodos.filter(todo => todo.id !== id));
       
       // Skicka borttagning till API
       await deleteTodo(id);
+      addNotification(`"${todoToDelete?.description.substring(0, 20)}${todoToDelete?.description.length > 20 ? '...' : ''}" har tagits bort`, 'info');
     } catch (error) {
       console.error('Failed to delete todo:', error);
       // Återställ vid fel genom att hämta todos på nytt
       loadTodos();
+      addNotification('Kunde inte ta bort post', 'error');
     }
   };
 
@@ -117,15 +158,18 @@ function App() {
   const handleEmailDetected = (email) => {
     setDetectedEmail(email);
     setIsVerifyingEmail(true);
+    addNotification(`E-postadress upptäckt: ${email}`, 'info');
   };
 
   const handleConfirmEmail = (email) => {
     setVerifiedEmails([...verifiedEmails, email]);
     setIsVerifyingEmail(false);
+    addNotification(`E-postadress verifierad: ${email}`, 'success');
   };
 
   const handleCancelEmailVerification = () => {
     setIsVerifyingEmail(false);
+    addNotification('E-postverifiering avbruten', 'info');
   };
 
   // Formatera datum för visning
@@ -149,8 +193,49 @@ function App() {
     setShowDatePicker(!showDatePicker);
   };
 
+  // Get the icon for the notification type
+  const getNotificationIcon = (type) => {
+    switch (type) {
+      case 'success':
+        return <CheckCircle className="w-5 h-5 text-green-500" />;
+      case 'error':
+        return <AlertCircle className="w-5 h-5 text-red-500" />;
+      case 'warning':
+        return <AlertCircle className="w-5 h-5 text-yellow-500" />;
+      case 'info':
+      default:
+        return <Info className="w-5 h-5 text-blue-500" />;
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-6">
+      {/* Notifications */}
+      <div className="fixed top-4 right-4 z-50 space-y-2 w-80">
+        {notifications.map(notification => (
+          <div 
+            key={notification.id} 
+            className={`flex items-center justify-between p-3 rounded-lg shadow-md animate-slide-in ${
+              notification.type === 'success' ? 'bg-green-50 border-l-4 border-green-500' :
+              notification.type === 'error' ? 'bg-red-50 border-l-4 border-red-500' :
+              notification.type === 'warning' ? 'bg-yellow-50 border-l-4 border-yellow-500' :
+              'bg-blue-50 border-l-4 border-blue-500'
+            }`}
+          >
+            <div className="flex items-center gap-2">
+              {getNotificationIcon(notification.type)}
+              <p className="text-gray-700">{notification.message}</p>
+            </div>
+            <button 
+              onClick={() => removeNotification(notification.id)}
+              className="text-gray-500 hover:text-gray-700"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+        ))}
+      </div>
+
       <div className="max-w-2xl mx-auto bg-white rounded-xl shadow-lg p-6">
         <h1 className="text-3xl font-bold text-gray-800 mb-8 text-center">
           Röstassistent
@@ -166,8 +251,14 @@ function App() {
               className="flex-1 p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
             <VoiceRecorder 
-              onRecordingComplete={setCurrentAudioUrl} 
-              onTranscriptionReceived={setTranscription}
+              onRecordingComplete={(url) => {
+                setCurrentAudioUrl(url);
+                addNotification('Röstinspelning slutförd', 'success');
+              }} 
+              onTranscriptionReceived={(text) => {
+                setTranscription(text);
+                addNotification('Transkribering klar', 'success');
+              }}
               onEmailDetected={handleEmailDetected}
             />
           </div>
@@ -186,7 +277,10 @@ function App() {
               <input
                 type="date"
                 value={dueDate}
-                onChange={(e) => setDueDate(e.target.value)}
+                onChange={(e) => {
+                  setDueDate(e.target.value);
+                  addNotification(`Datum satt till ${formatDate(e.target.value)}`, 'info');
+                }}
                 className="p-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                 min={new Date().toISOString().split('T')[0]}
               />
@@ -298,5 +392,25 @@ function App() {
     </div>
   );
 }
+
+// Lägg till CSS för animation
+const style = document.createElement('style');
+style.innerHTML = `
+  @keyframes slide-in {
+    0% {
+      transform: translateX(100%);
+      opacity: 0;
+    }
+    100% {
+      transform: translateX(0);
+      opacity: 1;
+    }
+  }
+  
+  .animate-slide-in {
+    animation: slide-in 0.3s ease-out forwards;
+  }
+`;
+document.head.appendChild(style);
 
 export default App;
