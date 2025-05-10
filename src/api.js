@@ -51,7 +51,7 @@ export const fetchTodos = async () => {
 
 export const createTodo = async (todo) => {
   try {
-    const response = await axios.post(`${API_URL}/todos`, todo);
+    const response = await axios.post(`${API_URL}/text`, todo);
     return response.data;
   } catch (error) {
     console.error('Error creating todo:', error);
@@ -61,7 +61,7 @@ export const createTodo = async (todo) => {
 
 export const updateTodo = async (id, updates) => {
   try {
-    const response = await axios.patch(`${API_URL}/todos/${id}`, updates);
+    const response = await axios.put(`${API_URL}/todos/${id}`, updates);
     return response.data;
   } catch (error) {
     console.error('Error updating todo:', error);

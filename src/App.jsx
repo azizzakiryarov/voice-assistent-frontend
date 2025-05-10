@@ -89,8 +89,12 @@ function App() {
         // Visa bekräftelse
         addNotification('Ny att göra-post har skapats', 'success');
         
+
         // Återställ formuläret
         resetForm();
+
+        // Ladda om todos för att säkerställa att vi har den senaste datan
+        loadTodos();
       } catch (error) {
         console.error('Failed to create todo:', error);
         addNotification('Kunde inte skapa att göra-post', 'error');
@@ -358,14 +362,7 @@ function App() {
                       {isOverdue(todo.dueDate) && !todo.completed && " (Försenad)"}
                     </span>
                   )}
-                </div>
-                
-                {todo.description && (
-                  <span className="text-xs bg-blue-100 text-blue-800 py-1 px-2 rounded-full">
-                    {todo.description}
-                  </span>
-                )}
-                
+                </div>  
                 <button
                   onClick={() => handleDeleteTodo(todo.id)}
                   className="text-red-500 hover:text-red-600"
