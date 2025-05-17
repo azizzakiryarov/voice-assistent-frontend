@@ -2,8 +2,9 @@ import React, { useState, useRef } from 'react';
 import { Mic, Square } from 'lucide-react';
 import { uploadVoiceRecording } from '../api.js';
 
-export function VoiceRecorder({ onRecordingComplete }) {
+export function VoiceRecorder({ onRecordingComplete, onTranscriptionReceived, onEmailDetected }) {
   const [isRecording, setIsRecording] = useState(false);
+  const [isProcessing, setIsProcessing] = useState(false);
   const mediaRecorder = useRef(null);
   const chunks = useRef([]);
 
@@ -18,14 +19,29 @@ export function VoiceRecorder({ onRecordingComplete }) {
       };
 
       mediaRecorder.current.onstop = async () => {
+        setIsProcessing(true);
         const blob = new Blob(chunks.current, { type: 'audio/webm' });
         const audioUrl = URL.createObjectURL(blob);
 
         try {
-          const response = await uploadVoiceRecording(blob); // Send the blob to your server
-          onRecordingComplete(response); // Pass the server response to the parent component
+          // Skicka filen för transkribering och email-extrahering
+          const response = await uploadVoiceRecording(blob);
+          
+          // Hantera den utökade responsen
+          if (response.transcription) {
+            onTranscriptionReceived(response.transcription);
+          }
+          
+          if (response.extractedEmail) {
+            onEmailDetected(response.extractedEmail);
+          }
+          
+          // För kompatibilitet med befintlig kod
+          onRecordingComplete(audioUrl);
         } catch (uploadError) {
           console.error('Error uploading recording:', uploadError);
+        } finally {
+          setIsProcessing(false);
         }
       };
 
@@ -47,11 +63,15 @@ export function VoiceRecorder({ onRecordingComplete }) {
   return (
     <button
       onClick={isRecording ? stopRecording : startRecording}
+      disabled={isProcessing}
       className={`p-3 rounded-full transition-colors ${
+        isProcessing ? 'bg-gray-400 cursor-not-allowed' :
         isRecording ? 'bg-red-500 hover:bg-red-600' : 'bg-blue-500 hover:bg-blue-600'
       }`}
     >
-      {isRecording ? (
+      {isProcessing ? (
+        <div className="w-6 h-6 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+      ) : isRecording ? (
         <Square className="w-6 h-6 text-white" />
       ) : (
         <Mic className="w-6 h-6 text-white" />
