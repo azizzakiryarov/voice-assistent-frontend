@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const API_URL = 'http://localhost:8081/api/voice-assistent'; // Replace with your actual API URL
+const API_URL = 'http://voice-assistant-service-backend:8081/api/voice-assistent'; // Replace with your actual API URL
 
 export const uploadVoiceRecording = async (audioBlob) => {
   try {
