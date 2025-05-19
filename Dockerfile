@@ -23,7 +23,7 @@ COPY --from=builder /app/dist /usr/share/nginx/html
 # Kopiera custom nginx config om du har en (valfritt)
 # COPY nginx.conf /etc/nginx/nginx.conf
 
-EXPOSE 5173
+EXPOSE 80
 
 CMD ["nginx", "-g", "daemon off;"]
 
