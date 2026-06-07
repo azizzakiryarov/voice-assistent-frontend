@@ -1,79 +1,129 @@
 import axios from 'axios';
 
-const API_URL = 'http://voice-assistant-service-backend:8081/api/voice-assistent';
+const API_URL = '/api/voice-assistent';
+
+// Skapa en axios-instans med gemensam konfiguration
+const apiClient = axios.create({
+  baseURL: API_URL,
+  timeout: 30000, // 30 sekunder timeout
+  headers: {
+    'Content-Type': 'application/json',
+  },
+});
+
+// Lägg till retry-logik för att hantera 502-fel
+const axiosRetry = async (fn, retries = 3, delay = 1000) => {
+  try {
+    return await fn();
+  } catch (error) {
+    if (retries > 0 && (error.response?.status === 502 || error.response?.status === 503)) {
+      console.warn(`Request failed with ${error.response?.status}, retrying... (${retries} attempts left)`);
+      await new Promise(resolve => setTimeout(resolve, delay));
+      return axiosRetry(fn, retries - 1, delay * 1.5); // Exponential backoff
+    }
+    throw error;
+  }
+};
+
+// Interceptor för att logga requests och responses
+apiClient.interceptors.request.use(
+  (config) => {
+    console.log(`Making ${config.method?.toUpperCase()} request to ${config.url}`);
+    return config;
+  },
+  (error) => {
+    console.error('Request error:', error);
+    return Promise.reject(error);
+  }
+);
+
+apiClient.interceptors.response.use(
+  (response) => {
+    console.log(`Response received: ${response.status} ${response.statusText}`);
+    return response;
+  },
+  (error) => {
+    if (error.response) {
+      console.error(`Response error: ${error.response.status} ${error.response.statusText}`);
+      if (error.response.status === 502) {
+        console.error('502 Bad Gateway - Backend service might be unavailable');
+      }
+    } else if (error.request) {
+      console.error('No response received:', error.request);
+    } else {
+      console.error('Request setup error:', error.message);
+    }
+    return Promise.reject(error);
+  }
+);
 
 export const uploadVoiceRecording = async (audioBlob) => {
-  try {
+  return axiosRetry(async () => {
     const formData = new FormData();
     formData.append('file', audioBlob, 'recording.webm');
 
-    const response = await axios.post(`${API_URL}/transcribe`, formData, {
+    const response = await apiClient.post('/transcribe', formData, {
       headers: {
         'Content-Type': 'multipart/form-data',
       },
+      timeout: 60000, // Längre timeout för filuppladdning
     });
 
-    // Nu förväntar vi oss en utökad respons som innehåller både audioUrl, transkription och extraherad email
     return {
       audioUrl: response.data.audioUrl,
       transcription: response.data.transcription,
       extractedEmail: response.data.extractedEmail
     };
-  } catch (error) {
-    console.error('Error uploading voice recording:', error);
-    throw error;
-  }
+  });
 };
 
-// Ny funktion för att bekräfta en e-postadress
 export const confirmEmail = async (email, transcription) => {
-  try {
-    const response = await axios.post(`${API_URL}/confirm-email`, {
+  return axiosRetry(async () => {
+    const response = await apiClient.post('/confirm-email', {
       email,
       transcription
     });
     return response.data;
-  } catch (error) {
-    console.error('Error confirming email:', error);
-    throw error;
-  }
+  });
 };
 
 export const fetchTodos = async () => {
-  try {
-    const response = await axios.get(`${API_URL}/todos`);
+  return axiosRetry(async () => {
+    const response = await apiClient.get('/todos');
     return response.data;
-  } catch (error) {
-    console.error('Error fetching todos:', error);
-    throw error;
-  }
+  });
 };
 
 export const createTodo = async (todo) => {
-  try {
-    const response = await axios.post(`${API_URL}/text`, todo);
+  return axiosRetry(async () => {
+    const response = await apiClient.post('/text', todo);
     return response.data;
-  } catch (error) {
-    console.error('Error creating todo:', error);
-    throw error;
-  }
+  });
 };
 
 export const updateTodo = async (id, updates) => {
-  try {
-    const response = await axios.put(`${API_URL}/todos/${id}`, updates);
+  return axiosRetry(async () => {
+    const response = await apiClient.put(`/todos/${id}`, updates);
     return response.data;
-  } catch (error) {
-    console.error('Error updating todo:', error);
-    throw error;
-  }
+  });
 };
 
 export const deleteTodo = async (id) => {
+  return axiosRetry(async () => {
+    await apiClient.delete(`/todos/${id}`);
+  });
+};
+
+// Hjälpfunktion för att kontrollera API-hälsa
+export const checkApiHealth = async () => {
   try {
-    await axios.delete(`${API_URL}/todos/${id}`);
+    const response = await apiClient.get('/health', { timeout: 5000 });
+    return { healthy: true, status: response.status };
   } catch (error) {
-    console.error('Error deleting todo:', error);
-    throw error;
+    return { 
+      healthy: false, 
+      error: error.response?.status || 'Network Error',
+      message: error.message 
+    };
   }
 };

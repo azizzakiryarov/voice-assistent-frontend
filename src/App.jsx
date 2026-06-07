@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { Trash2, Check, Volume2, Mail, Calendar, X, AlertCircle, CheckCircle, Info } from 'lucide-react';
 import { VoiceRecorder } from './components/VoiceRecorder';
 import { EmailVerificationModal } from './components/EmailVerificationModal';
@@ -22,6 +22,8 @@ function App() {
   // Hämta todos vid komponentens första rendering
   useEffect(() => {
     loadTodos();
+    // loadTodos is intentionally called only on initial mount.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Remove notifications after timeout

@@ -1,34 +1,22 @@
-# Steg 1: Bygg React-appen
-FROM node:18 AS builder
-
+# Multi-stage build för ARM64
+FROM node:18-alpine AS builder
 WORKDIR /app
-
 COPY package*.json ./
-RUN npm install
-
+RUN npm ci
 COPY . .
-
 RUN npm run build
 
-# Steg 2: Servera med nginx
-FROM nginx:stable-alpine
+# Nginx stage
+FROM nginx:alpine
+RUN rm /etc/nginx/conf.d/default.conf && rm -rf /usr/share/nginx/html/*
 
-# Ta bort default nginx statisk sida
-RUN rm -rf /usr/share/nginx/html/*
-
-# Kopiera byggda filer från builder-steget
+# Kopiera byggda filer
 COPY --from=builder /app/dist /usr/share/nginx/html
+COPY nginx.conf /etc/nginx/nginx.conf
 
-
-# Kopiera custom nginx config om du har en (valfritt)
-# COPY nginx.conf /etc/nginx/nginx.conf
+# Sätt rätt permissions
+RUN chown -R nginx:nginx /usr/share/nginx/html && \
+    chmod -R 755 /usr/share/nginx/html
 
 EXPOSE 80
-
 CMD ["nginx", "-g", "daemon off;"]
-
-# Bygg och kör containern
-
-#podman build -f Dockerfile -t azizzakiryarov/voice-assistant-frontend:latest .
-
-#podman push azizzakiryarov/voice-assistant-frontend:latest
