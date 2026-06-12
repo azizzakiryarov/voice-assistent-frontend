@@ -135,7 +135,7 @@ export function VoiceRecorder({ onRecordingComplete, onTranscriptionReceived, on
           onRecordingComplete(audioUrl);
         } catch (uploadError) {
           console.error('Error uploading recording:', uploadError);
-          setError('Kunde inte ladda upp inspelning');
+          setError(uploadError.response?.data?.message || 'Kunde inte ladda upp inspelning');
         } finally {
           setIsProcessing(false);
         }

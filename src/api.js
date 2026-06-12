@@ -6,9 +6,6 @@ const API_URL = '/api/voice-assistent';
 const apiClient = axios.create({
   baseURL: API_URL,
   timeout: 30000, // 30 sekunder timeout
-  headers: {
-    'Content-Type': 'application/json',
-  },
 });
 
 // Lägg till retry-logik för att hantera 502-fel
