@@ -23,6 +23,21 @@ export default defineConfig({
           });
         },
       },
+      '/oauth2': {
+        target: process.env.VITE_API_URL || 'http://localhost:8081',
+        changeOrigin: true,
+        secure: false,
+      },
+      '/login/oauth2': {
+        target: process.env.VITE_API_URL || 'http://localhost:8081',
+        changeOrigin: true,
+        secure: false,
+      },
+      '/logout': {
+        target: process.env.VITE_API_URL || 'http://localhost:8081',
+        changeOrigin: true,
+        secure: false,
+      },
     },
   },
   

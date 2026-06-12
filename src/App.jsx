@@ -1,8 +1,18 @@
 import { useState, useEffect } from 'react';
-import { Trash2, Check, Volume2, Mail, Calendar, X, AlertCircle, CheckCircle, Info } from 'lucide-react';
+import { Trash2, Check, Volume2, Mail, Calendar, X, AlertCircle, CheckCircle, Info, LogIn, LogOut } from 'lucide-react';
 import { VoiceRecorder } from './components/VoiceRecorder';
 import { EmailVerificationModal } from './components/EmailVerificationModal';
-import { fetchTodos, createTodo, updateTodo, deleteTodo, approveVoiceCommand } from './api';
+import {
+  fetchTodos,
+  createTodo,
+  updateTodo,
+  deleteTodo,
+  approveVoiceCommand,
+  fetchCurrentUser,
+  fetchSyncStatus,
+  loginWithGoogle,
+  logout
+} from './api';
 
 function App() {
   const [newTodo, setNewTodo] = useState('');
@@ -15,6 +25,9 @@ function App() {
   const [verifiedEmails, setVerifiedEmails] = useState([]);
   const [pendingVoiceCommand, setPendingVoiceCommand] = useState(null);
   const [isApprovingVoiceCommand, setIsApprovingVoiceCommand] = useState(false);
+  const [currentUser, setCurrentUser] = useState(null);
+  const [syncStatus, setSyncStatus] = useState(null);
+  const [isAuthLoading, setIsAuthLoading] = useState(true);
   const [todos, setTodos] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
   
@@ -23,10 +36,19 @@ function App() {
 
   // Hämta todos vid komponentens första rendering
   useEffect(() => {
-    loadTodos();
-    // loadTodos is intentionally called only on initial mount.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    loadCurrentUser();
   }, []);
+
+  useEffect(() => {
+    if (currentUser?.authenticated) {
+      loadTodos();
+      loadSyncStatus();
+    } else {
+      setTodos([]);
+      setSyncStatus(null);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentUser?.authenticated]);
 
   // Remove notifications after timeout
   useEffect(() => {
@@ -45,12 +67,48 @@ function App() {
     setNotifications(prev => [...prev, { id, message, type }]);
   };
 
+  const loadCurrentUser = async () => {
+    try {
+      setIsAuthLoading(true);
+      const user = await fetchCurrentUser();
+      setCurrentUser(user);
+    } catch (error) {
+      console.error('Failed to load current user:', error);
+      setCurrentUser({ authenticated: false });
+    } finally {
+      setIsAuthLoading(false);
+    }
+  };
+
+  const loadSyncStatus = async () => {
+    try {
+      const status = await fetchSyncStatus();
+      setSyncStatus(status);
+    } catch (error) {
+      console.error('Failed to load sync status:', error);
+      setSyncStatus(null);
+    }
+  };
+
+  const handleLogout = async () => {
+    try {
+      await logout();
+    } finally {
+      setCurrentUser({ authenticated: false });
+      setTodos([]);
+      setPendingVoiceCommand(null);
+      setTranscription('');
+      setSyncStatus(null);
+    }
+  };
+
   // Function to remove a notification
   const removeNotification = (id) => {
     setNotifications(prev => prev.filter(notification => notification.id !== id));
   };
 
   const loadTodos = async () => {
+    if (!currentUser?.authenticated) return;
     try {
       setIsLoading(true);
       const todosData = await fetchTodos();
@@ -109,7 +167,11 @@ function App() {
         addNotification('Att göra-post har sparats', 'success');
         loadTodos();
       } else if (result?.type === 'MEETING') {
-        addNotification('Möte har skapats i Google Kalender', 'success');
+        addNotification(
+          result.googleSynced ? 'Möte har skapats i Google Kalender' : 'Möte sparat, men Google-synk misslyckades',
+          result.googleSynced ? 'success' : 'warning'
+        );
+        loadSyncStatus();
       } else {
         addNotification('Röstkommandot har behandlats', 'success');
       }
@@ -274,6 +336,37 @@ function App() {
     }
   };
 
+  if (isAuthLoading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-6 flex items-center justify-center">
+        <div className="bg-white rounded-xl shadow-lg p-6 text-gray-700">Laddar profil...</div>
+      </div>
+    );
+  }
+
+  if (!currentUser?.authenticated) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-6 flex items-center justify-center">
+        <div className="max-w-md w-full bg-white rounded-xl shadow-lg p-6 space-y-5">
+          <div>
+            <h1 className="text-2xl font-bold text-gray-800">Röstassistent</h1>
+            <p className="text-gray-600 mt-2">
+              Logga in med Google för att hantera dina egna todos, möten och kalenderhändelser.
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={loginWithGoogle}
+            className="w-full flex items-center justify-center gap-2 bg-blue-500 text-white py-3 rounded-lg hover:bg-blue-600 transition-colors"
+          >
+            <LogIn className="w-5 h-5" />
+            Logga in med Google
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-6">
       {/* Notifications */}
@@ -306,6 +399,34 @@ function App() {
         <h1 className="text-3xl font-bold text-gray-800 mb-8 text-center">
           Röstassistent
         </h1>
+
+        <div className="mb-6 flex items-center justify-between gap-4 p-3 bg-gray-50 rounded-lg">
+          <div className="flex items-center gap-3 min-w-0">
+            {currentUser.pictureUrl && (
+              <img
+                src={currentUser.pictureUrl}
+                alt=""
+                className="w-10 h-10 rounded-full"
+                referrerPolicy="no-referrer"
+              />
+            )}
+            <div className="min-w-0">
+              <p className="font-medium text-gray-800 truncate">{currentUser.name || currentUser.email}</p>
+              <p className="text-sm text-gray-500 truncate">{currentUser.email}</p>
+              <p className="text-xs text-gray-500">
+                Kalender: {syncStatus?.googleCalendar || 'KONTROLLERAS'} · Tasks: {syncStatus?.googleTasks || 'NOT_CONFIGURED'}
+              </p>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={handleLogout}
+            className="flex items-center gap-2 text-gray-600 hover:text-gray-900 px-3 py-2 rounded-lg bg-white border border-gray-200"
+          >
+            <LogOut className="w-4 h-4" />
+            Logga ut
+          </button>
+        </div>
 
         <form onSubmit={handleSubmit} className="mb-6 space-y-4">
           <div className="flex gap-4">

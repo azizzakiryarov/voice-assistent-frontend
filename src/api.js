@@ -6,6 +6,7 @@ const API_URL = '/api/voice-assistent';
 const apiClient = axios.create({
   baseURL: API_URL,
   timeout: 30000, // 30 sekunder timeout
+  withCredentials: true,
 });
 
 // Lägg till retry-logik för att hantera 502-fel
@@ -73,6 +74,24 @@ export const approveVoiceCommand = async (command) => {
     const response = await apiClient.post('/voice-command/approve', command);
     return response.data;
   });
+};
+
+export const fetchCurrentUser = async () => {
+  const response = await apiClient.get('/auth/me', { timeout: 10000 });
+  return response.data;
+};
+
+export const fetchSyncStatus = async () => {
+  const response = await apiClient.get('/auth/sync-status', { timeout: 10000 });
+  return response.data;
+};
+
+export const loginWithGoogle = () => {
+  window.location.href = '/oauth2/authorization/google';
+};
+
+export const logout = async () => {
+  await axios.post('/logout', null, { withCredentials: true });
 };
 
 export const confirmEmail = async (email, transcription) => {
