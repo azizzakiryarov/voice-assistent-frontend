@@ -94,7 +94,7 @@ export const fetchTodos = async () => {
 
 export const createTodo = async (todo) => {
   return axiosRetry(async () => {
-    const response = await apiClient.post('/text', todo);
+    const response = await apiClient.post('/todos', todo);
     return response.data;
   });
 };
