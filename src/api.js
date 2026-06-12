@@ -60,12 +60,10 @@ apiClient.interceptors.response.use(
 export const uploadVoiceRecording = async (audioBlob) => {
   return axiosRetry(async () => {
     const formData = new FormData();
-    formData.append('file', audioBlob, 'recording.webm');
+    const extension = audioBlob.type === 'audio/mp4' ? 'm4a' : 'webm';
+    formData.append('file', audioBlob, `recording.${extension}`);
 
     const response = await apiClient.post('/transcribe', formData, {
-      headers: {
-        'Content-Type': 'multipart/form-data',
-      },
       timeout: 60000, // Längre timeout för filuppladdning
     });
 

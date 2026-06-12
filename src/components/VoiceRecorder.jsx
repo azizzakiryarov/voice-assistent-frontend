@@ -8,12 +8,13 @@ export function VoiceRecorder({ onRecordingComplete, onTranscriptionReceived, on
   const [error, setError] = useState(null);
   const [isSupported, setIsSupported] = useState(true);
   const mediaRecorder = useRef(null);
+  const mediaStream = useRef(null);
   const chunks = useRef([]);
 
   // Kontrollera support vid första renderingen
   useEffect(() => {
     const checkSupport = () => {
-      if (!navigator.mediaDevices) {
+      if (typeof window === 'undefined' || !navigator.mediaDevices) {
         setError('MediaDevices API inte tillgängligt');
         setIsSupported(false);
         return false;
@@ -25,10 +26,17 @@ export function VoiceRecorder({ onRecordingComplete, onTranscriptionReceived, on
         return false;
       }
       
-      // Kontrollera om vi kör över HTTPS eller localhost
-      const isSecure = location.protocol === 'https:' || 
-                      location.hostname === 'localhost' || 
-                      location.hostname === '127.0.0.1';
+      if (typeof MediaRecorder === 'undefined') {
+        setError('MediaRecorder inte tillgängligt i denna webbläsare');
+        setIsSupported(false);
+        return false;
+      }
+      
+      // Kontrollera om vi kör i en säker kontext
+      const isSecure = window.isSecureContext ||
+        location.hostname === 'localhost' ||
+        location.hostname === '127.0.0.1' ||
+        location.hostname === '::1';
       
       if (!isSecure) {
         setError('Mikrofon kräver HTTPS eller localhost');
@@ -59,11 +67,22 @@ export function VoiceRecorder({ onRecordingComplete, onTranscriptionReceived, on
           sampleRate: 44100
         } 
       });
+      mediaStream.current = stream;
       
       console.log('Mikrofon tillgång beviljad');
       
+      const preferredMimeType = MediaRecorder.isTypeSupported('audio/webm')
+        ? 'audio/webm'
+        : MediaRecorder.isTypeSupported('audio/mp4')
+          ? 'audio/mp4'
+          : '';
+
+      if (!preferredMimeType) {
+        throw new Error('Ingen stödd ljudcodec hittades');
+      }
+
       mediaRecorder.current = new MediaRecorder(stream, {
-        mimeType: MediaRecorder.isTypeSupported('audio/webm') ? 'audio/webm' : 'audio/mp4'
+        mimeType: preferredMimeType
       });
       
       chunks.current = [];
@@ -77,8 +96,8 @@ export function VoiceRecorder({ onRecordingComplete, onTranscriptionReceived, on
       mediaRecorder.current.onstop = async () => {
         console.log('Inspelning stoppad, processerar...');
         setIsProcessing(true);
-        
-        const mimeType = mediaRecorder.current.mimeType;
+
+        const mimeType = mediaRecorder.current?.mimeType || chunks.current[0]?.type || 'audio/webm';
         const blob = new Blob(chunks.current, { type: mimeType });
         const audioUrl = URL.createObjectURL(blob);
 
@@ -105,6 +124,10 @@ export function VoiceRecorder({ onRecordingComplete, onTranscriptionReceived, on
           console.error('Error uploading recording:', uploadError);
           setError('Kunde inte ladda upp inspelning');
         } finally {
+          if (mediaStream.current) {
+            mediaStream.current.getTracks().forEach(track => track.stop());
+            mediaStream.current = null;
+          }
           setIsProcessing(false);
         }
       };
@@ -121,6 +144,10 @@ export function VoiceRecorder({ onRecordingComplete, onTranscriptionReceived, on
       
     } catch (err) {
       console.error('Error accessing microphone:', err);
+      if (mediaStream.current) {
+        mediaStream.current.getTracks().forEach(track => track.stop());
+        mediaStream.current = null;
+      }
       
       let errorMessage = 'Kunde inte få tillgång till mikrofon';
       
@@ -142,15 +169,6 @@ export function VoiceRecorder({ onRecordingComplete, onTranscriptionReceived, on
     if (mediaRecorder.current && isRecording) {
       console.log('Stoppar inspelning...');
       mediaRecorder.current.stop();
-      
-      // Stoppa alla tracks
-      if (mediaRecorder.current.stream) {
-        mediaRecorder.current.stream.getTracks().forEach(track => {
-          track.stop();
-          console.log('Track stoppad:', track.kind);
-        });
-      }
-      
       setIsRecording(false);
     }
   };
