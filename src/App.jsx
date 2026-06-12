@@ -1,18 +1,31 @@
-import { useState, useEffect } from 'react';
-import { Trash2, Check, Volume2, Mail, Calendar, X, AlertCircle, CheckCircle, Info, LogIn, LogOut, RefreshCw } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import {
+  AlertCircle,
+  Calendar,
+  Check,
+  CheckCircle,
+  Info,
+  LogIn,
+  LogOut,
+  Mail,
+  RefreshCw,
+  Trash2,
+  Volume2,
+  X
+} from 'lucide-react';
 import { VoiceRecorder } from './components/VoiceRecorder';
 import { EmailVerificationModal } from './components/EmailVerificationModal';
 import {
-  fetchTodos,
-  createTodo,
-  updateTodo,
-  deleteTodo,
   approveVoiceCommand,
+  createTodo,
+  deleteTodo,
   fetchCurrentUser,
   fetchSyncStatus,
+  fetchTodos,
   loginWithGoogle,
   logout,
-  syncGoogleTasks
+  syncGoogleTasks,
+  updateTodo
 } from './api';
 
 function App() {
@@ -32,11 +45,8 @@ function App() {
   const [isSyncingGoogleTasks, setIsSyncingGoogleTasks] = useState(false);
   const [todos, setTodos] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
-  
-  // Notification state
   const [notifications, setNotifications] = useState([]);
 
-  // Hämta todos vid komponentens första rendering
   useEffect(() => {
     loadCurrentUser();
   }, []);
@@ -52,28 +62,26 @@ function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentUser?.authenticated]);
 
-  // Remove notifications after timeout
   useEffect(() => {
-    if (notifications.length > 0) {
-      const timer = setTimeout(() => {
-        setNotifications(prev => prev.slice(1));
-      }, 5000);
-      
-      return () => clearTimeout(timer);
-    }
+    if (notifications.length === 0) return undefined;
+    const timer = setTimeout(() => {
+      setNotifications(prev => prev.slice(1));
+    }, 5000);
+    return () => clearTimeout(timer);
   }, [notifications]);
 
-  // Function to add a notification
   const addNotification = (message, type = 'info') => {
-    const id = Date.now();
-    setNotifications(prev => [...prev, { id, message, type }]);
+    setNotifications(prev => [...prev, { id: Date.now(), message, type }]);
+  };
+
+  const removeNotification = (id) => {
+    setNotifications(prev => prev.filter(notification => notification.id !== id));
   };
 
   const loadCurrentUser = async () => {
     try {
       setIsAuthLoading(true);
-      const user = await fetchCurrentUser();
-      setCurrentUser(user);
+      setCurrentUser(await fetchCurrentUser());
     } catch (error) {
       console.error('Failed to load current user:', error);
       setCurrentUser({ authenticated: false });
@@ -84,11 +92,23 @@ function App() {
 
   const loadSyncStatus = async () => {
     try {
-      const status = await fetchSyncStatus();
-      setSyncStatus(status);
+      setSyncStatus(await fetchSyncStatus());
     } catch (error) {
       console.error('Failed to load sync status:', error);
       setSyncStatus(null);
+    }
+  };
+
+  const loadTodos = async () => {
+    if (!currentUser?.authenticated) return;
+    try {
+      setIsLoading(true);
+      setTodos(await fetchTodos());
+    } catch (error) {
+      console.error('Failed to load todos:', error);
+      addNotification('Kunde inte ladda att göra-poster', 'error');
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -119,26 +139,6 @@ function App() {
       addNotification(error.response?.data?.message || 'Kunde inte synka Google Tasks', 'error');
     } finally {
       setIsSyncingGoogleTasks(false);
-    }
-  };
-
-  // Function to remove a notification
-  const removeNotification = (id) => {
-    setNotifications(prev => prev.filter(notification => notification.id !== id));
-  };
-
-  const loadTodos = async () => {
-    if (!currentUser?.authenticated) return;
-    try {
-      setIsLoading(true);
-      const todosData = await fetchTodos();
-      setTodos(todosData);
-      addNotification('Alla att göra-poster har laddats', 'info');
-    } catch (error) {
-      console.error('Failed to load todos:', error);
-      addNotification('Kunde inte ladda att göra-poster', 'error');
-    } finally {
-      setIsLoading(false);
     }
   };
 
@@ -212,68 +212,51 @@ function App() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (newTodo.trim()) {
-      try {
-        // Förbereda todo-data enligt backend DTO struktur
-        const todoData = {
-          description: newTodo,
-          dueDate: dueDate || null,
-          completed: false
-        };
-        
-        // Om vi har e-post eller ljudurl, lägg till som extra egenskaper
-        if (currentAudioUrl) {
-          todoData.audioUrl = currentAudioUrl;
-        }
-        
-        if (verifiedEmails.length > 0) {
-          todoData.email = verifiedEmails[verifiedEmails.length - 1];
-        }
-        
-        // Skicka till backend
-        const createdTodo = await createTodo(todoData);
-        
-        // Uppdatera den lokala listan med todos
-        setTodos(prevTodos => [...prevTodos, createdTodo]);
-        
-        // Visa bekräftelse
-        addNotification('Ny att göra-post har skapats', 'success');
-        
-
-        // Återställ formuläret
-        resetForm();
-
-        // Ladda om todos för att säkerställa att vi har den senaste datan
-        loadTodos();
-      } catch (error) {
-        console.error('Failed to create todo:', error);
-        addNotification('Kunde inte skapa att göra-post', 'error');
-      }
-    } else {
+    if (!newTodo.trim()) {
       addNotification('Du måste ange en beskrivning', 'warning');
+      return;
+    }
+
+    try {
+      const todoData = {
+        description: newTodo,
+        dueDate: dueDate || null,
+        completed: false
+      };
+
+      if (currentAudioUrl) {
+        todoData.audioUrl = currentAudioUrl;
+      }
+
+      if (verifiedEmails.length > 0) {
+        todoData.email = verifiedEmails[verifiedEmails.length - 1];
+      }
+
+      const createdTodo = await createTodo(todoData);
+      setTodos(prevTodos => [...prevTodos, createdTodo]);
+      addNotification('Ny att göra-post har skapats', 'success');
+      resetForm();
+      loadTodos();
+    } catch (error) {
+      console.error('Failed to create todo:', error);
+      addNotification('Kunde inte skapa att göra-post', 'error');
     }
   };
 
   const handleToggleTodo = async (id, completed) => {
     try {
-      // Uppdatera i UI först för omedelbar feedback
-      setTodos(prevTodos => 
-        prevTodos.map(todo => 
+      setTodos(prevTodos =>
+        prevTodos.map(todo =>
           todo.id === id ? { ...todo, completed: !completed } : todo
         )
       );
-      
-      // Skicka uppdatering till API
+
       await updateTodo(id, { completed: !completed });
-      addNotification(
-        `Markerad som ${!completed ? 'slutförd' : 'ej slutförd'}`, 
-        'success'
-      );
+      addNotification(`Markerad som ${!completed ? 'slutförd' : 'ej slutförd'}`, 'success');
     } catch (error) {
       console.error('Failed to toggle todo:', error);
-      // Återställ vid fel
-      setTodos(prevTodos => 
-        prevTodos.map(todo => 
+      setTodos(prevTodos =>
+        prevTodos.map(todo =>
           todo.id === id ? { ...todo, completed } : todo
         )
       );
@@ -283,18 +266,12 @@ function App() {
 
   const handleDeleteTodo = async (id) => {
     try {
-      // Hitta todo för meddelande
       const todoToDelete = todos.find(todo => todo.id === id);
-      
-      // Ta bort från UI först för omedelbar feedback
       setTodos(prevTodos => prevTodos.filter(todo => todo.id !== id));
-      
-      // Skicka borttagning till API
       await deleteTodo(id);
       addNotification(`"${todoToDelete?.description.substring(0, 20)}${todoToDelete?.description.length > 20 ? '...' : ''}" har tagits bort`, 'info');
     } catch (error) {
       console.error('Failed to delete todo:', error);
-      // Återställ vid fel genom att hämta todos på nytt
       loadTodos();
       addNotification('Kunde inte ta bort post', 'error');
     }
@@ -320,66 +297,68 @@ function App() {
     addNotification('E-postverifiering avbruten', 'info');
   };
 
-  // Formatera datum för visning
   const formatDate = (dateString) => {
     if (!dateString) return '';
-    const date = new Date(dateString);
-    return date.toLocaleDateString('sv-SE');
+    return new Date(dateString).toLocaleDateString('sv-SE');
   };
 
-  // Beräkna om ett datum är passerat
   const isOverdue = (dateString) => {
     if (!dateString) return false;
     const today = new Date();
     today.setHours(0, 0, 0, 0);
-    const dueDate = new Date(dateString);
-    return dueDate < today;
+    const targetDate = new Date(dateString);
+    return targetDate < today;
   };
 
-  // Visa datumväljaren
-  const toggleDatePicker = () => {
-    setShowDatePicker(!showDatePicker);
-  };
-
-  // Get the icon for the notification type
   const getNotificationIcon = (type) => {
     switch (type) {
       case 'success':
-        return <CheckCircle className="w-5 h-5 text-green-500" />;
+        return <CheckCircle className="h-5 w-5 text-emerald-600" />;
       case 'error':
-        return <AlertCircle className="w-5 h-5 text-red-500" />;
+        return <AlertCircle className="h-5 w-5 text-rose-600" />;
       case 'warning':
-        return <AlertCircle className="w-5 h-5 text-yellow-500" />;
+        return <AlertCircle className="h-5 w-5 text-amber-600" />;
       case 'info':
       default:
-        return <Info className="w-5 h-5 text-blue-500" />;
+        return <Info className="h-5 w-5 text-sky-600" />;
     }
   };
 
+  const syncBadgeClass = (value) => (
+    value === 'CONNECTED'
+      ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
+      : 'border-amber-200 bg-amber-50 text-amber-700'
+  );
+
+  const completedCount = todos.filter(todo => todo.completed).length;
+  const googleTasksCount = todos.filter(todo => todo.syncStatus === 'GOOGLE_TASKS_IMPORTED').length;
+
   if (isAuthLoading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-6 flex items-center justify-center">
-        <div className="bg-white rounded-xl shadow-lg p-6 text-gray-700">Laddar profil...</div>
+      <div className="flex min-h-screen items-center justify-center bg-zinc-100 p-6">
+        <div className="rounded-lg border border-zinc-200 bg-white px-5 py-4 text-sm text-zinc-700 shadow-sm">
+          Laddar profil...
+        </div>
       </div>
     );
   }
 
   if (!currentUser?.authenticated) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-6 flex items-center justify-center">
-        <div className="max-w-md w-full bg-white rounded-xl shadow-lg p-6 space-y-5">
+      <div className="flex min-h-screen items-center justify-center bg-zinc-100 p-6">
+        <div className="w-full max-w-md space-y-5 rounded-lg border border-zinc-200 bg-white p-6 shadow-sm">
           <div>
-            <h1 className="text-2xl font-bold text-gray-800">Röstassistent</h1>
-            <p className="text-gray-600 mt-2">
-              Logga in med Google för att hantera dina egna todos, möten och kalenderhändelser.
+            <h1 className="text-2xl font-semibold text-zinc-950">Röstassistent</h1>
+            <p className="mt-2 text-sm leading-6 text-zinc-600">
+              Logga in med Google för att hantera dina todos, möten och synkronisering.
             </p>
           </div>
           <button
             type="button"
             onClick={loginWithGoogle}
-            className="w-full flex items-center justify-center gap-2 bg-blue-500 text-white py-3 rounded-lg hover:bg-blue-600 transition-colors"
+            className="flex min-h-11 w-full items-center justify-center gap-2 rounded-lg bg-zinc-950 px-4 text-sm font-medium text-white transition-colors hover:bg-zinc-800"
           >
-            <LogIn className="w-5 h-5" />
+            <LogIn className="h-5 w-5" />
             Logga in med Google
           </button>
         </div>
@@ -388,309 +367,365 @@ function App() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-6">
-      {/* Notifications */}
-      <div className="fixed top-4 right-4 z-50 space-y-2 w-80">
+    <div className="min-h-screen bg-zinc-100 text-zinc-950">
+      <div className="fixed right-4 top-4 z-50 w-[min(22rem,calc(100vw-2rem))] space-y-2">
         {notifications.map(notification => (
-          <div 
-            key={notification.id} 
-            className={`flex items-center justify-between p-3 rounded-lg shadow-md animate-slide-in ${
-              notification.type === 'success' ? 'bg-green-50 border-l-4 border-green-500' :
-              notification.type === 'error' ? 'bg-red-50 border-l-4 border-red-500' :
-              notification.type === 'warning' ? 'bg-yellow-50 border-l-4 border-yellow-500' :
-              'bg-blue-50 border-l-4 border-blue-500'
+          <div
+            key={notification.id}
+            className={`flex items-center justify-between gap-3 rounded-lg border p-3 shadow-sm animate-slide-in ${
+              notification.type === 'success' ? 'border-emerald-200 bg-emerald-50' :
+              notification.type === 'error' ? 'border-rose-200 bg-rose-50' :
+              notification.type === 'warning' ? 'border-amber-200 bg-amber-50' :
+              'border-sky-200 bg-sky-50'
             }`}
           >
             <div className="flex items-center gap-2">
               {getNotificationIcon(notification.type)}
-              <p className="text-gray-700">{notification.message}</p>
+              <p className="text-sm text-zinc-800">{notification.message}</p>
             </div>
-            <button 
+            <button
               onClick={() => removeNotification(notification.id)}
-              className="text-gray-500 hover:text-gray-700"
+              className="rounded p-1 text-zinc-500 transition-colors hover:bg-white/70 hover:text-zinc-900"
             >
-              <X className="w-4 h-4" />
+              <X className="h-4 w-4" />
             </button>
           </div>
         ))}
       </div>
 
-      <div className="max-w-2xl mx-auto bg-white rounded-xl shadow-lg p-6">
-        <h1 className="text-3xl font-bold text-gray-800 mb-8 text-center">
-          Röstassistent
-        </h1>
+      <div className="mx-auto flex min-h-screen w-full max-w-6xl flex-col px-4 py-6 sm:px-6 lg:px-8">
+        <header className="mb-6 flex flex-col gap-4 border-b border-zinc-200 pb-5 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h1 className="text-2xl font-semibold text-zinc-950">Röstassistent</h1>
+            <p className="mt-1 text-sm text-zinc-600">Todos, röstkommandon och Google-synk för ditt konto.</p>
+          </div>
 
-        <div className="mb-6 flex items-center justify-between gap-4 p-3 bg-gray-50 rounded-lg">
-          <div className="flex items-center gap-3 min-w-0">
-            {currentUser.pictureUrl && (
-              <img
-                src={currentUser.pictureUrl}
-                alt=""
-                className="w-10 h-10 rounded-full"
-                referrerPolicy="no-referrer"
-              />
-            )}
-            <div className="min-w-0">
-              <p className="font-medium text-gray-800 truncate">{currentUser.name || currentUser.email}</p>
-              <p className="text-sm text-gray-500 truncate">{currentUser.email}</p>
-              <p className="text-xs text-gray-500">
-                Kalender: {syncStatus?.googleCalendar || 'KONTROLLERAS'} · Tasks: {syncStatus?.googleTasks || 'NOT_CONFIGURED'}
-              </p>
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+            <div className="flex items-center gap-3 rounded-lg border border-zinc-200 bg-white px-3 py-2 shadow-sm">
+              {currentUser.pictureUrl && (
+                <img
+                  src={currentUser.pictureUrl}
+                  alt=""
+                  className="h-10 w-10 rounded-full"
+                  referrerPolicy="no-referrer"
+                />
+              )}
+              <div className="min-w-0">
+                <p className="truncate text-sm font-medium text-zinc-950">{currentUser.name || currentUser.email}</p>
+                <p className="truncate text-xs text-zinc-500">{currentUser.email}</p>
+              </div>
             </div>
-          </div>
-          <button
-            type="button"
-            onClick={handleLogout}
-            className="flex items-center gap-2 text-gray-600 hover:text-gray-900 px-3 py-2 rounded-lg bg-white border border-gray-200"
-          >
-            <LogOut className="w-4 h-4" />
-            Logga ut
-          </button>
-        </div>
-
-        <button
-          type="button"
-          onClick={handleSyncGoogleTasks}
-          disabled={isSyncingGoogleTasks}
-          className="mb-6 w-full flex items-center justify-center gap-2 bg-gray-800 text-white py-2 rounded-lg hover:bg-gray-900 disabled:bg-gray-400"
-        >
-          <RefreshCw className={`w-4 h-4 ${isSyncingGoogleTasks ? 'animate-spin' : ''}`} />
-          {isSyncingGoogleTasks ? 'Synkar Google Tasks...' : 'Synka Google Tasks'}
-        </button>
-
-        <form onSubmit={handleSubmit} className="mb-6 space-y-4">
-          <div className="flex gap-4">
-            <input
-              type="text"
-              value={newTodo}
-              onChange={(e) => setNewTodo(e.target.value)}
-              placeholder="Lägg till en ny att göra-post..."
-              className="flex-1 p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
-            <VoiceRecorder 
-              onRecordingComplete={(url) => {
-                setCurrentAudioUrl(url);
-                addNotification('Röstinspelning slutförd', 'success');
-              }} 
-              onPreviewReceived={handleVoicePreview}
-            />
-          </div>
-          
-          <div className="flex items-center gap-2">
-            <button 
+            <button
               type="button"
-              onClick={toggleDatePicker}
-              className="flex items-center gap-1 text-blue-600 hover:text-blue-800 py-1 px-3 bg-blue-50 rounded-lg"
+              onClick={handleLogout}
+              className="flex min-h-10 items-center justify-center gap-2 rounded-lg border border-zinc-200 bg-white px-3 text-sm text-zinc-700 shadow-sm transition-colors hover:bg-zinc-50 hover:text-zinc-950"
             >
-              <Calendar className="w-4 h-4" />
-              {dueDate ? `Slutdatum: ${formatDate(dueDate)}` : "Lägg till slutdatum"}
+              <LogOut className="h-4 w-4" />
+              Logga ut
             </button>
-            
-            {showDatePicker && (
-              <input
-                type="date"
-                value={dueDate}
-                onChange={(e) => {
-                  setDueDate(e.target.value);
-                  addNotification(`Datum satt till ${formatDate(e.target.value)}`, 'info');
-                }}
-                className="p-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                min={new Date().toISOString().split('T')[0]}
-              />
-            )}
           </div>
-          
-          {transcription && (
-            <div className="p-3 bg-gray-50 rounded-lg">
-              <h3 className="font-medium text-gray-700 mb-1">Transkribering:</h3>
-              <p className="text-gray-600">{transcription}</p>
-            </div>
-          )}
-          
-          {currentAudioUrl && (
-            <div className="flex items-center gap-2 text-sm text-gray-600">
-              <Volume2 className="w-4 h-4" />
-              <span>Röstinspelning:</span>
-              <audio src={currentAudioUrl} controls className="h-8" />
-            </div>
-          )}
+        </header>
 
-          {pendingVoiceCommand && (
-            <div className="p-4 border border-blue-200 bg-blue-50 rounded-lg space-y-3">
-              <div className="flex items-center justify-between">
-                <h3 className="font-medium text-gray-800">Granska röstkommando</h3>
-                <span className="text-xs font-medium text-blue-700 bg-white px-2 py-1 rounded">
-                  {pendingVoiceCommand.type}
-                </span>
+        <main className="grid flex-1 gap-6 lg:grid-cols-[minmax(0,1fr)_18rem]">
+          <section className="space-y-5">
+            <form onSubmit={handleSubmit} className="rounded-lg border border-zinc-200 bg-white p-4 shadow-sm sm:p-5">
+              <div className="flex flex-col gap-3 sm:flex-row">
+                <input
+                  type="text"
+                  value={newTodo}
+                  onChange={(e) => setNewTodo(e.target.value)}
+                  placeholder="Lägg till en ny att göra-post..."
+                  className="min-h-11 flex-1 rounded-lg border border-zinc-300 bg-white px-3 text-sm text-zinc-950 outline-none transition focus:border-zinc-500 focus:ring-4 focus:ring-zinc-100"
+                />
+                <div className="flex items-center gap-2">
+                  <VoiceRecorder
+                    onRecordingComplete={(url) => {
+                      setCurrentAudioUrl(url);
+                      addNotification('Röstinspelning slutförd', 'success');
+                    }}
+                    onPreviewReceived={handleVoicePreview}
+                  />
+                  <button
+                    type="submit"
+                    className="min-h-11 rounded-lg bg-zinc-950 px-4 text-sm font-medium text-white transition-colors hover:bg-zinc-800"
+                  >
+                    Lägg till
+                  </button>
+                </div>
               </div>
 
-              {pendingVoiceCommand.type === 'TODO' && (
-                <>
-                  <input
-                    type="text"
-                    value={pendingVoiceCommand.todo?.description || ''}
-                    onChange={(e) => updatePendingVoiceCommand('todo', 'description', e.target.value)}
-                    className="w-full p-2 border border-gray-300 rounded-lg"
-                    placeholder="Beskrivning"
-                  />
+              <div className="mt-3 flex flex-wrap items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setShowDatePicker(!showDatePicker)}
+                  className="flex min-h-9 items-center gap-2 rounded-lg border border-zinc-200 bg-zinc-50 px-3 text-sm text-zinc-700 transition-colors hover:bg-zinc-100 hover:text-zinc-950"
+                >
+                  <Calendar className="h-4 w-4" />
+                  {dueDate ? `Slutdatum: ${formatDate(dueDate)}` : 'Lägg till slutdatum'}
+                </button>
+
+                {showDatePicker && (
                   <input
                     type="date"
-                    value={pendingVoiceCommand.todo?.dueDate || ''}
-                    onChange={(e) => updatePendingVoiceCommand('todo', 'dueDate', e.target.value || null)}
-                    className="w-full p-2 border border-gray-300 rounded-lg"
+                    value={dueDate}
+                    onChange={(e) => {
+                      setDueDate(e.target.value);
+                      addNotification(`Datum satt till ${formatDate(e.target.value)}`, 'info');
+                    }}
+                    className="min-h-9 rounded-lg border border-zinc-300 px-3 text-sm outline-none transition focus:border-zinc-500 focus:ring-4 focus:ring-zinc-100"
+                    min={new Date().toISOString().split('T')[0]}
                   />
-                </>
-              )}
-
-              {pendingVoiceCommand.type === 'MEETING' && (
-                <>
-                  <input
-                    type="text"
-                    value={pendingVoiceCommand.meeting?.title || ''}
-                    onChange={(e) => updatePendingVoiceCommand('meeting', 'title', e.target.value)}
-                    className="w-full p-2 border border-gray-300 rounded-lg"
-                    placeholder="Titel"
-                  />
-                  <input
-                    type="datetime-local"
-                    value={pendingVoiceCommand.meeting?.startTimestamp?.slice(0, 16) || ''}
-                    onChange={(e) => updatePendingVoiceCommand('meeting', 'startTimestamp', e.target.value ? `${e.target.value}:00` : null)}
-                    className="w-full p-2 border border-gray-300 rounded-lg"
-                  />
-                  <input
-                    type="datetime-local"
-                    value={pendingVoiceCommand.meeting?.endTimestamp?.slice(0, 16) || ''}
-                    onChange={(e) => updatePendingVoiceCommand('meeting', 'endTimestamp', e.target.value ? `${e.target.value}:00` : null)}
-                    className="w-full p-2 border border-gray-300 rounded-lg"
-                  />
-                  <input
-                    type="text"
-                    value={pendingVoiceCommand.meeting?.participants?.[0]?.name || ''}
-                    onChange={(e) => updatePendingParticipant('name', e.target.value)}
-                    className="w-full p-2 border border-gray-300 rounded-lg"
-                    placeholder="Deltagare"
-                  />
-                  <input
-                    type="email"
-                    value={pendingVoiceCommand.meeting?.participants?.[0]?.email || ''}
-                    onChange={(e) => updatePendingParticipant('email', e.target.value)}
-                    className="w-full p-2 border border-gray-300 rounded-lg"
-                    placeholder="E-post, valfritt"
-                  />
-                </>
-              )}
-
-              {pendingVoiceCommand.type === 'UNKNOWN' && (
-                <p className="text-sm text-gray-700">
-                  {pendingVoiceCommand.message || 'Kommandot kunde inte tolkas.'}
-                </p>
-              )}
-
-              <div className="flex gap-3">
-                <button
-                  type="button"
-                  onClick={approvePendingVoiceCommand}
-                  disabled={isApprovingVoiceCommand || pendingVoiceCommand.type === 'UNKNOWN'}
-                  className="flex-1 bg-green-500 text-white py-2 rounded-lg hover:bg-green-600 disabled:bg-gray-400"
-                >
-                  {isApprovingVoiceCommand ? 'Sparar...' : 'Godkänn'}
-                </button>
-                <button
-                  type="button"
-                  onClick={cancelPendingVoiceCommand}
-                  className="flex-1 bg-gray-200 text-gray-800 py-2 rounded-lg hover:bg-gray-300"
-                >
-                  Avbryt
-                </button>
+                )}
               </div>
-            </div>
-          )}
-          
-          {verifiedEmails.length > 0 && (
-            <div className="flex items-center gap-2 text-sm text-green-600 bg-green-50 p-2 rounded-lg">
-              <Mail className="w-4 h-4" />
-              <span>Verifierad e-post: {verifiedEmails[verifiedEmails.length - 1]}</span>
-            </div>
-          )}
-          
-          <button
-            type="submit"
-            className="w-full bg-blue-500 text-white py-3 rounded-lg hover:bg-blue-600 transition-colors"
-          >
-            Lägg till att göra-post
-          </button>
-        </form>
+            </form>
 
-        {isLoading ? (
-          <div className="text-center py-4 text-gray-500">Laddar todos...</div>
-        ) : (
-          <ul className="space-y-3">
-            {todos.map((todo) => (
-              <li
-                key={todo.id}
-                className="flex items-center gap-4 p-4 bg-gray-50 rounded-lg"
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <h2 className="text-base font-semibold text-zinc-950">Att göra</h2>
+                <p className="text-sm text-zinc-500">{todos.length} poster</p>
+              </div>
+              <button
+                type="button"
+                onClick={handleSyncGoogleTasks}
+                disabled={isSyncingGoogleTasks}
+                className="flex min-h-10 items-center justify-center gap-2 rounded-lg border border-zinc-200 bg-white px-3 text-sm font-medium text-zinc-800 shadow-sm transition-colors hover:bg-zinc-50 disabled:text-zinc-400"
               >
-                <button
-                  onClick={() => handleToggleTodo(todo.id, todo.completed)}
-                  className={`flex-shrink-0 w-6 h-6 rounded-full border-2 ${
-                    todo.completed
-                      ? 'bg-green-500 border-green-500'
-                      : 'border-gray-300'
-                  } flex items-center justify-center`}
-                >
-                  {todo.completed && <Check className="w-4 h-4 text-white" />}
-                </button>
-                <div className="flex-1">
-                  <span
-                    className={`block ${
-                      todo.completed ? 'line-through text-gray-500' : 'text-gray-800'
-                    }`}
-                  >
-                    {todo.description}
+                <RefreshCw className={`h-4 w-4 ${isSyncingGoogleTasks ? 'animate-spin' : ''}`} />
+                {isSyncingGoogleTasks ? 'Synkar...' : 'Synka Google Tasks'}
+              </button>
+            </div>
+
+            {transcription && (
+              <div className="rounded-lg border border-zinc-200 bg-white p-4 shadow-sm">
+                <h3 className="text-sm font-medium text-zinc-950">Transkribering</h3>
+                <p className="mt-1 text-sm text-zinc-600">{transcription}</p>
+              </div>
+            )}
+
+            {currentAudioUrl && (
+              <div className="flex flex-wrap items-center gap-2 rounded-lg border border-zinc-200 bg-white p-3 text-sm text-zinc-600 shadow-sm">
+                <Volume2 className="h-4 w-4" />
+                <span>Röstinspelning</span>
+                <audio src={currentAudioUrl} controls className="h-8" />
+              </div>
+            )}
+
+            {pendingVoiceCommand && (
+              <div className="space-y-3 rounded-lg border border-teal-200 bg-teal-50 p-4 shadow-sm">
+                <div className="flex items-center justify-between gap-3">
+                  <h3 className="text-sm font-semibold text-zinc-950">Granska röstkommando</h3>
+                  <span className="rounded-full border border-teal-200 bg-white px-2 py-1 text-xs font-medium text-teal-700">
+                    {pendingVoiceCommand.type}
                   </span>
-                  
-                  {todo.dueDate && (
-                    <span 
-                      className={`text-xs ${
-                        isOverdue(todo.dueDate) && !todo.completed 
-                          ? 'text-red-600' 
-                          : 'text-gray-500'
+                </div>
+
+                {pendingVoiceCommand.type === 'TODO' && (
+                  <>
+                    <input
+                      type="text"
+                      value={pendingVoiceCommand.todo?.description || ''}
+                      onChange={(e) => updatePendingVoiceCommand('todo', 'description', e.target.value)}
+                      className="min-h-10 w-full rounded-lg border border-zinc-300 bg-white px-3 text-sm outline-none focus:border-teal-600 focus:ring-4 focus:ring-teal-100"
+                      placeholder="Beskrivning"
+                    />
+                    <input
+                      type="date"
+                      value={pendingVoiceCommand.todo?.dueDate || ''}
+                      onChange={(e) => updatePendingVoiceCommand('todo', 'dueDate', e.target.value || null)}
+                      className="min-h-10 w-full rounded-lg border border-zinc-300 bg-white px-3 text-sm outline-none focus:border-teal-600 focus:ring-4 focus:ring-teal-100"
+                    />
+                  </>
+                )}
+
+                {pendingVoiceCommand.type === 'MEETING' && (
+                  <>
+                    <input
+                      type="text"
+                      value={pendingVoiceCommand.meeting?.title || ''}
+                      onChange={(e) => updatePendingVoiceCommand('meeting', 'title', e.target.value)}
+                      className="min-h-10 w-full rounded-lg border border-zinc-300 bg-white px-3 text-sm outline-none focus:border-teal-600 focus:ring-4 focus:ring-teal-100"
+                      placeholder="Titel"
+                    />
+                    <div className="grid gap-3 sm:grid-cols-2">
+                      <input
+                        type="datetime-local"
+                        value={pendingVoiceCommand.meeting?.startTimestamp?.slice(0, 16) || ''}
+                        onChange={(e) => updatePendingVoiceCommand('meeting', 'startTimestamp', e.target.value ? `${e.target.value}:00` : null)}
+                        className="min-h-10 w-full rounded-lg border border-zinc-300 bg-white px-3 text-sm outline-none focus:border-teal-600 focus:ring-4 focus:ring-teal-100"
+                      />
+                      <input
+                        type="datetime-local"
+                        value={pendingVoiceCommand.meeting?.endTimestamp?.slice(0, 16) || ''}
+                        onChange={(e) => updatePendingVoiceCommand('meeting', 'endTimestamp', e.target.value ? `${e.target.value}:00` : null)}
+                        className="min-h-10 w-full rounded-lg border border-zinc-300 bg-white px-3 text-sm outline-none focus:border-teal-600 focus:ring-4 focus:ring-teal-100"
+                      />
+                    </div>
+                    <div className="grid gap-3 sm:grid-cols-2">
+                      <input
+                        type="text"
+                        value={pendingVoiceCommand.meeting?.participants?.[0]?.name || ''}
+                        onChange={(e) => updatePendingParticipant('name', e.target.value)}
+                        className="min-h-10 w-full rounded-lg border border-zinc-300 bg-white px-3 text-sm outline-none focus:border-teal-600 focus:ring-4 focus:ring-teal-100"
+                        placeholder="Deltagare"
+                      />
+                      <input
+                        type="email"
+                        value={pendingVoiceCommand.meeting?.participants?.[0]?.email || ''}
+                        onChange={(e) => updatePendingParticipant('email', e.target.value)}
+                        className="min-h-10 w-full rounded-lg border border-zinc-300 bg-white px-3 text-sm outline-none focus:border-teal-600 focus:ring-4 focus:ring-teal-100"
+                        placeholder="E-post, valfritt"
+                      />
+                    </div>
+                  </>
+                )}
+
+                {pendingVoiceCommand.type === 'UNKNOWN' && (
+                  <p className="text-sm text-zinc-700">
+                    {pendingVoiceCommand.message || 'Kommandot kunde inte tolkas.'}
+                  </p>
+                )}
+
+                <div className="flex flex-col gap-2 sm:flex-row">
+                  <button
+                    type="button"
+                    onClick={approvePendingVoiceCommand}
+                    disabled={isApprovingVoiceCommand || pendingVoiceCommand.type === 'UNKNOWN'}
+                    className="min-h-10 flex-1 rounded-lg bg-emerald-600 px-3 text-sm font-medium text-white transition-colors hover:bg-emerald-700 disabled:bg-zinc-300"
+                  >
+                    {isApprovingVoiceCommand ? 'Sparar...' : 'Godkänn'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={cancelPendingVoiceCommand}
+                    className="min-h-10 flex-1 rounded-lg border border-zinc-200 bg-white px-3 text-sm font-medium text-zinc-700 transition-colors hover:bg-zinc-50"
+                  >
+                    Avbryt
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {verifiedEmails.length > 0 && (
+              <div className="flex items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-700">
+                <Mail className="h-4 w-4" />
+                <span>Verifierad e-post: {verifiedEmails[verifiedEmails.length - 1]}</span>
+              </div>
+            )}
+
+            {isLoading ? (
+              <div className="rounded-lg border border-zinc-200 bg-white p-6 text-center text-sm text-zinc-500 shadow-sm">Laddar todos...</div>
+            ) : (
+              <ul className="space-y-2">
+                {todos.map((todo) => (
+                  <li
+                    key={todo.id}
+                    className="group flex items-start gap-3 rounded-lg border border-zinc-200 bg-white p-4 shadow-sm transition hover:border-zinc-300"
+                  >
+                    <button
+                      onClick={() => handleToggleTodo(todo.id, todo.completed)}
+                      className={`mt-0.5 flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full border transition-colors ${
+                        todo.completed
+                          ? 'border-emerald-600 bg-emerald-600'
+                          : 'border-zinc-300 bg-white hover:border-zinc-500'
                       }`}
                     >
-                      <Calendar className="w-3 h-3 inline mr-1" />
-                      {formatDate(todo.dueDate)}
-                      {isOverdue(todo.dueDate) && !todo.completed && " (Försenad)"}
-                    </span>
-                  )}
-                </div>  
-                <button
-                  onClick={() => handleDeleteTodo(todo.id)}
-                  className="text-red-500 hover:text-red-600"
-                >
-                  <Trash2 className="w-5 h-5" />
-                </button>
-              </li>
-            ))}
-            {todos.length === 0 && (
-              <p className="text-center text-gray-500 py-4">Inga att göra-poster ännu</p>
+                      {todo.completed && <Check className="h-4 w-4 text-white" />}
+                    </button>
+                    <div className="min-w-0 flex-1">
+                      <span
+                        className={`block break-words text-sm font-medium ${
+                          todo.completed ? 'text-zinc-400 line-through' : 'text-zinc-950'
+                        }`}
+                      >
+                        {todo.description}
+                      </span>
+
+                      <div className="mt-2 flex flex-wrap items-center gap-2">
+                        {todo.dueDate && (
+                          <span
+                            className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs ${
+                              isOverdue(todo.dueDate) && !todo.completed
+                                ? 'border-rose-200 bg-rose-50 text-rose-700'
+                                : 'border-zinc-200 bg-zinc-50 text-zinc-600'
+                            }`}
+                          >
+                            <Calendar className="h-3 w-3" />
+                            {formatDate(todo.dueDate)}
+                            {isOverdue(todo.dueDate) && !todo.completed && ' · Försenad'}
+                          </span>
+                        )}
+                        {todo.syncStatus && (
+                          <span className="rounded-full border border-sky-200 bg-sky-50 px-2 py-0.5 text-xs text-sky-700">
+                            {todo.syncStatus === 'GOOGLE_TASKS_IMPORTED' ? 'Google Tasks' : 'Lokal'}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => handleDeleteTodo(todo.id)}
+                      className="rounded-lg p-2 text-zinc-400 transition-colors hover:bg-rose-50 hover:text-rose-600"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                  </li>
+                ))}
+                {todos.length === 0 && (
+                  <li className="rounded-lg border border-dashed border-zinc-300 bg-white p-8 text-center text-sm text-zinc-500">
+                    Inga att göra-poster ännu
+                  </li>
+                )}
+              </ul>
             )}
-          </ul>
+          </section>
+
+          <aside className="space-y-4">
+            <div className="rounded-lg border border-zinc-200 bg-white p-4 shadow-sm">
+              <h2 className="text-sm font-semibold text-zinc-950">Synkstatus</h2>
+              <div className="mt-3 space-y-2">
+                <div className={`flex items-center justify-between rounded-lg border px-3 py-2 text-sm ${syncBadgeClass(syncStatus?.googleCalendar)}`}>
+                  <span>Google Kalender</span>
+                  <span>{syncStatus?.googleCalendar || 'KONTROLLERAS'}</span>
+                </div>
+                <div className={`flex items-center justify-between rounded-lg border px-3 py-2 text-sm ${syncBadgeClass(syncStatus?.googleTasks)}`}>
+                  <span>Google Tasks</span>
+                  <span>{syncStatus?.googleTasks || 'KONTROLLERAS'}</span>
+                </div>
+              </div>
+            </div>
+
+            <div className="rounded-lg border border-zinc-200 bg-white p-4 shadow-sm">
+              <h2 className="text-sm font-semibold text-zinc-950">Översikt</h2>
+              <div className="mt-3 grid grid-cols-2 gap-2">
+                <div className="rounded-lg bg-zinc-50 p-3">
+                  <p className="text-xs text-zinc-500">Totalt</p>
+                  <p className="mt-1 text-xl font-semibold text-zinc-950">{todos.length}</p>
+                </div>
+                <div className="rounded-lg bg-zinc-50 p-3">
+                  <p className="text-xs text-zinc-500">Klara</p>
+                  <p className="mt-1 text-xl font-semibold text-zinc-950">{completedCount}</p>
+                </div>
+                <div className="col-span-2 rounded-lg bg-zinc-50 p-3">
+                  <p className="text-xs text-zinc-500">Från Google Tasks</p>
+                  <p className="mt-1 text-xl font-semibold text-zinc-950">{googleTasksCount}</p>
+                </div>
+              </div>
+            </div>
+          </aside>
+        </main>
+
+        {isVerifyingEmail && detectedEmail && (
+          <EmailVerificationModal
+            email={detectedEmail}
+            transcription={transcription}
+            onConfirm={handleConfirmEmail}
+            onCancel={handleCancelEmailVerification}
+          />
         )}
       </div>
-      
-      {isVerifyingEmail && detectedEmail && (
-        <EmailVerificationModal 
-          email={detectedEmail} 
-          transcription={transcription}
-          onConfirm={handleConfirmEmail}
-          onCancel={handleCancelEmailVerification}
-        />
-      )}
     </div>
   );
 }
 
-// Lägg till CSS för animation
 const style = document.createElement('style');
 style.innerHTML = `
   @keyframes slide-in {
@@ -703,7 +738,7 @@ style.innerHTML = `
       opacity: 1;
     }
   }
-  
+
   .animate-slide-in {
     animation: slide-in 0.3s ease-out forwards;
   }

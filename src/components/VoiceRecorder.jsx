@@ -176,14 +176,14 @@ export function VoiceRecorder({ onRecordingComplete, onPreviewReceived }) {
       <div className="flex flex-col items-center gap-2">
         <button
           disabled
-          className="p-3 rounded-full bg-gray-400 cursor-not-allowed"
+          className="flex h-11 w-11 items-center justify-center rounded-lg bg-zinc-300 cursor-not-allowed"
         >
           <AlertCircle className="w-6 h-6 text-white" />
         </button>
-        <p className="text-sm text-red-500 text-center max-w-xs">
+        <p className="text-sm text-rose-600 text-center max-w-xs">
           {error}
         </p>
-        <p className="text-xs text-gray-500 text-center max-w-xs">
+        <p className="text-xs text-zinc-500 text-center max-w-xs">
           Nuvarande URL: {location.protocol}//{location.host}
         </p>
       </div>
@@ -196,9 +196,9 @@ export function VoiceRecorder({ onRecordingComplete, onPreviewReceived }) {
         type="button"
         onClick={isRecording ? stopRecording : startRecording}
         disabled={isProcessing}
-        className={`p-3 rounded-full transition-colors ${
-          isProcessing ? 'bg-gray-400 cursor-not-allowed' :
-          isRecording ? 'bg-red-500 hover:bg-red-600' : 'bg-blue-500 hover:bg-blue-600'
+        className={`flex h-11 w-11 items-center justify-center rounded-lg shadow-sm transition-colors ${
+          isProcessing ? 'bg-zinc-300 cursor-not-allowed' :
+          isRecording ? 'bg-rose-600 hover:bg-rose-700' : 'bg-teal-600 hover:bg-teal-700'
         }`}
       >
         {isProcessing ? (
@@ -211,13 +211,13 @@ export function VoiceRecorder({ onRecordingComplete, onPreviewReceived }) {
       </button>
       
       {error && (
-        <p className="text-sm text-red-500 text-center max-w-xs">
+        <p className="text-sm text-rose-600 text-center max-w-xs">
           {error}
         </p>
       )}
       
       {isRecording && (
-        <p className="text-sm text-green-600 text-center">
+        <p className="text-sm text-teal-700 text-center">
           🔴 Spelar in...
         </p>
       )}
