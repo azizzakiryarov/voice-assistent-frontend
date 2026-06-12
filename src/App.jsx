@@ -62,6 +62,30 @@ function App() {
     }
   };
 
+  const processVoiceCommand = async (text) => {
+    try {
+      const result = await createTodo({
+        description: text,
+        dueDate: null,
+        completed: false
+      });
+
+      if (result?.description) {
+        setTodos(prevTodos => [...prevTodos, result]);
+        addNotification('Ny att göra-post har skapats från röstkommandot', 'success');
+        loadTodos();
+      } else if (result?.title || result?.startTimestamp) {
+        addNotification('Möte har skapats i Google Kalender', 'success');
+      } else {
+        addNotification('Röstkommandot har behandlats', 'success');
+      }
+      setNewTodo('');
+    } catch (error) {
+      console.error('Failed to process voice command:', error);
+      addNotification(error.response?.data?.message || 'Kunde inte behandla röstkommandot', 'error');
+    }
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (newTodo.trim()) {
@@ -262,8 +286,12 @@ function App() {
                 addNotification('Röstinspelning slutförd', 'success');
               }} 
               onTranscriptionReceived={(text) => {
+                setNewTodo(text);
                 setTranscription(text);
                 addNotification('Transkribering klar', 'success');
+              }}
+              onCommandReady={(text) => {
+                processVoiceCommand(text);
               }}
               onEmailDetected={handleEmailDetected}
             />

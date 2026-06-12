@@ -2,7 +2,7 @@ import { useEffect, useState, useRef } from 'react';
 import { Mic, Square, AlertCircle } from 'lucide-react';
 import { uploadVoiceRecording } from '../api.js';
 
-export function VoiceRecorder({ onRecordingComplete, onTranscriptionReceived, onEmailDetected }) {
+export function VoiceRecorder({ onRecordingComplete, onTranscriptionReceived, onEmailDetected, onCommandReady }) {
   const [isRecording, setIsRecording] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [error, setError] = useState(null);
@@ -124,11 +124,13 @@ export function VoiceRecorder({ onRecordingComplete, onTranscriptionReceived, on
           
           // Hantera den utökade responsen
           if (response.transcription) {
-            onTranscriptionReceived(response.transcription);
+            onTranscriptionReceived(response.transcription, response.extractedEmail);
           }
           
           if (response.extractedEmail) {
             onEmailDetected(response.extractedEmail);
+          } else if (response.transcription) {
+            onCommandReady(response.transcription);
           }
           
           // För kompatibilitet med befintlig kod
