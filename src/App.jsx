@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { Trash2, Check, Volume2, Mail, Calendar, X, AlertCircle, CheckCircle, Info } from 'lucide-react';
 import { VoiceRecorder } from './components/VoiceRecorder';
 import { EmailVerificationModal } from './components/EmailVerificationModal';
-import { fetchTodos, createTodo, updateTodo, deleteTodo } from './api';
+import { fetchTodos, createTodo, updateTodo, deleteTodo, approveVoiceCommand } from './api';
 
 function App() {
   const [newTodo, setNewTodo] = useState('');
@@ -13,6 +13,8 @@ function App() {
   const [detectedEmail, setDetectedEmail] = useState(null);
   const [isVerifyingEmail, setIsVerifyingEmail] = useState(false);
   const [verifiedEmails, setVerifiedEmails] = useState([]);
+  const [pendingVoiceCommand, setPendingVoiceCommand] = useState(null);
+  const [isApprovingVoiceCommand, setIsApprovingVoiceCommand] = useState(false);
   const [todos, setTodos] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
   
@@ -62,28 +64,68 @@ function App() {
     }
   };
 
-  const processVoiceCommand = async (text) => {
-    try {
-      const result = await createTodo({
-        description: text,
-        dueDate: null,
-        completed: false
-      });
+  const handleVoicePreview = (preview) => {
+    setPendingVoiceCommand(preview);
+    setTranscription(preview.transcription || '');
+    setNewTodo(preview.transcription || '');
+    addNotification('Röstkommando redo för granskning', 'info');
+  };
 
-      if (result?.description) {
-        setTodos(prevTodos => [...prevTodos, result]);
-        addNotification('Ny att göra-post har skapats från röstkommandot', 'success');
+  const updatePendingVoiceCommand = (section, field, value) => {
+    setPendingVoiceCommand(prev => ({
+      ...prev,
+      [section]: {
+        ...prev[section],
+        [field]: value
+      }
+    }));
+  };
+
+  const updatePendingParticipant = (field, value) => {
+    setPendingVoiceCommand(prev => {
+      const participants = prev.meeting?.participants?.length
+        ? [...prev.meeting.participants]
+        : [{ name: '', email: '' }];
+      participants[0] = { ...participants[0], [field]: value };
+
+      return {
+        ...prev,
+        meeting: {
+          ...prev.meeting,
+          participants
+        }
+      };
+    });
+  };
+
+  const approvePendingVoiceCommand = async () => {
+    if (!pendingVoiceCommand) return;
+
+    try {
+      setIsApprovingVoiceCommand(true);
+      const result = await approveVoiceCommand(pendingVoiceCommand);
+
+      if (result?.type === 'TODO') {
+        addNotification('Att göra-post har sparats', 'success');
         loadTodos();
-      } else if (result?.title || result?.startTimestamp) {
+      } else if (result?.type === 'MEETING') {
         addNotification('Möte har skapats i Google Kalender', 'success');
       } else {
         addNotification('Röstkommandot har behandlats', 'success');
       }
+      setPendingVoiceCommand(null);
       setNewTodo('');
     } catch (error) {
-      console.error('Failed to process voice command:', error);
-      addNotification(error.response?.data?.message || 'Kunde inte behandla röstkommandot', 'error');
+      console.error('Failed to approve voice command:', error);
+      addNotification(error.response?.data?.message || 'Kunde inte godkänna röstkommandot', 'error');
+    } finally {
+      setIsApprovingVoiceCommand(false);
     }
+  };
+
+  const cancelPendingVoiceCommand = () => {
+    setPendingVoiceCommand(null);
+    addNotification('Röstkommando avbrutet', 'info');
   };
 
   const handleSubmit = async (e) => {
@@ -185,12 +227,6 @@ function App() {
     setDetectedEmail(null);
   };
 
-  const handleEmailDetected = (email) => {
-    setDetectedEmail(email);
-    setIsVerifyingEmail(true);
-    addNotification(`E-postadress upptäckt: ${email}`, 'info');
-  };
-
   const handleConfirmEmail = (email) => {
     setVerifiedEmails([...verifiedEmails, email]);
     setIsVerifyingEmail(false);
@@ -285,15 +321,7 @@ function App() {
                 setCurrentAudioUrl(url);
                 addNotification('Röstinspelning slutförd', 'success');
               }} 
-              onTranscriptionReceived={(text) => {
-                setNewTodo(text);
-                setTranscription(text);
-                addNotification('Transkribering klar', 'success');
-              }}
-              onCommandReady={(text) => {
-                processVoiceCommand(text);
-              }}
-              onEmailDetected={handleEmailDetected}
+              onPreviewReceived={handleVoicePreview}
             />
           </div>
           
@@ -333,6 +361,97 @@ function App() {
               <Volume2 className="w-4 h-4" />
               <span>Röstinspelning:</span>
               <audio src={currentAudioUrl} controls className="h-8" />
+            </div>
+          )}
+
+          {pendingVoiceCommand && (
+            <div className="p-4 border border-blue-200 bg-blue-50 rounded-lg space-y-3">
+              <div className="flex items-center justify-between">
+                <h3 className="font-medium text-gray-800">Granska röstkommando</h3>
+                <span className="text-xs font-medium text-blue-700 bg-white px-2 py-1 rounded">
+                  {pendingVoiceCommand.type}
+                </span>
+              </div>
+
+              {pendingVoiceCommand.type === 'TODO' && (
+                <>
+                  <input
+                    type="text"
+                    value={pendingVoiceCommand.todo?.description || ''}
+                    onChange={(e) => updatePendingVoiceCommand('todo', 'description', e.target.value)}
+                    className="w-full p-2 border border-gray-300 rounded-lg"
+                    placeholder="Beskrivning"
+                  />
+                  <input
+                    type="date"
+                    value={pendingVoiceCommand.todo?.dueDate || ''}
+                    onChange={(e) => updatePendingVoiceCommand('todo', 'dueDate', e.target.value || null)}
+                    className="w-full p-2 border border-gray-300 rounded-lg"
+                  />
+                </>
+              )}
+
+              {pendingVoiceCommand.type === 'MEETING' && (
+                <>
+                  <input
+                    type="text"
+                    value={pendingVoiceCommand.meeting?.title || ''}
+                    onChange={(e) => updatePendingVoiceCommand('meeting', 'title', e.target.value)}
+                    className="w-full p-2 border border-gray-300 rounded-lg"
+                    placeholder="Titel"
+                  />
+                  <input
+                    type="datetime-local"
+                    value={pendingVoiceCommand.meeting?.startTimestamp?.slice(0, 16) || ''}
+                    onChange={(e) => updatePendingVoiceCommand('meeting', 'startTimestamp', e.target.value ? `${e.target.value}:00` : null)}
+                    className="w-full p-2 border border-gray-300 rounded-lg"
+                  />
+                  <input
+                    type="datetime-local"
+                    value={pendingVoiceCommand.meeting?.endTimestamp?.slice(0, 16) || ''}
+                    onChange={(e) => updatePendingVoiceCommand('meeting', 'endTimestamp', e.target.value ? `${e.target.value}:00` : null)}
+                    className="w-full p-2 border border-gray-300 rounded-lg"
+                  />
+                  <input
+                    type="text"
+                    value={pendingVoiceCommand.meeting?.participants?.[0]?.name || ''}
+                    onChange={(e) => updatePendingParticipant('name', e.target.value)}
+                    className="w-full p-2 border border-gray-300 rounded-lg"
+                    placeholder="Deltagare"
+                  />
+                  <input
+                    type="email"
+                    value={pendingVoiceCommand.meeting?.participants?.[0]?.email || ''}
+                    onChange={(e) => updatePendingParticipant('email', e.target.value)}
+                    className="w-full p-2 border border-gray-300 rounded-lg"
+                    placeholder="E-post, valfritt"
+                  />
+                </>
+              )}
+
+              {pendingVoiceCommand.type === 'UNKNOWN' && (
+                <p className="text-sm text-gray-700">
+                  {pendingVoiceCommand.message || 'Kommandot kunde inte tolkas.'}
+                </p>
+              )}
+
+              <div className="flex gap-3">
+                <button
+                  type="button"
+                  onClick={approvePendingVoiceCommand}
+                  disabled={isApprovingVoiceCommand || pendingVoiceCommand.type === 'UNKNOWN'}
+                  className="flex-1 bg-green-500 text-white py-2 rounded-lg hover:bg-green-600 disabled:bg-gray-400"
+                >
+                  {isApprovingVoiceCommand ? 'Sparar...' : 'Godkänn'}
+                </button>
+                <button
+                  type="button"
+                  onClick={cancelPendingVoiceCommand}
+                  className="flex-1 bg-gray-200 text-gray-800 py-2 rounded-lg hover:bg-gray-300"
+                >
+                  Avbryt
+                </button>
+              </div>
             </div>
           )}
           

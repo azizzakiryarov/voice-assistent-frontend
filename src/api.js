@@ -60,15 +60,18 @@ export const uploadVoiceRecording = async (audioBlob) => {
     const extension = audioBlob.type === 'audio/mp4' ? 'm4a' : 'webm';
     formData.append('file', audioBlob, `recording.${extension}`);
 
-    const response = await apiClient.post('/transcribe', formData, {
+    const response = await apiClient.post('/voice-command/preview', formData, {
       timeout: 60000, // Längre timeout för filuppladdning
     });
 
-    return {
-      audioUrl: response.data.audioUrl,
-      transcription: response.data.transcription,
-      extractedEmail: response.data.extractedEmail
-    };
+    return response.data;
+  });
+};
+
+export const approveVoiceCommand = async (command) => {
+  return axiosRetry(async () => {
+    const response = await apiClient.post('/voice-command/approve', command);
+    return response.data;
   });
 };
 
