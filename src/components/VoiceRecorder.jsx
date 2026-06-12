@@ -50,6 +50,19 @@ export function VoiceRecorder({ onRecordingComplete, onTranscriptionReceived, on
     checkSupport();
   }, []);
 
+  useEffect(() => {
+    return () => {
+      if (mediaRecorder.current && mediaRecorder.current.state !== 'inactive') {
+        mediaRecorder.current.stop();
+      }
+
+      if (mediaStream.current) {
+        mediaStream.current.getTracks().forEach(track => track.stop());
+        mediaStream.current = null;
+      }
+    };
+  }, []);
+
   const startRecording = async () => {
     if (!isSupported) {
       return;
@@ -124,10 +137,6 @@ export function VoiceRecorder({ onRecordingComplete, onTranscriptionReceived, on
           console.error('Error uploading recording:', uploadError);
           setError('Kunde inte ladda upp inspelning');
         } finally {
-          if (mediaStream.current) {
-            mediaStream.current.getTracks().forEach(track => track.stop());
-            mediaStream.current = null;
-          }
           setIsProcessing(false);
         }
       };
@@ -144,10 +153,6 @@ export function VoiceRecorder({ onRecordingComplete, onTranscriptionReceived, on
       
     } catch (err) {
       console.error('Error accessing microphone:', err);
-      if (mediaStream.current) {
-        mediaStream.current.getTracks().forEach(track => track.stop());
-        mediaStream.current = null;
-      }
       
       let errorMessage = 'Kunde inte få tillgång till mikrofon';
       
