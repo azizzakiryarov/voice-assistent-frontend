@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Trash2, Check, Volume2, Mail, Calendar, X, AlertCircle, CheckCircle, Info, LogIn, LogOut } from 'lucide-react';
+import { Trash2, Check, Volume2, Mail, Calendar, X, AlertCircle, CheckCircle, Info, LogIn, LogOut, RefreshCw } from 'lucide-react';
 import { VoiceRecorder } from './components/VoiceRecorder';
 import { EmailVerificationModal } from './components/EmailVerificationModal';
 import {
@@ -11,7 +11,8 @@ import {
   fetchCurrentUser,
   fetchSyncStatus,
   loginWithGoogle,
-  logout
+  logout,
+  syncGoogleTasks
 } from './api';
 
 function App() {
@@ -28,6 +29,7 @@ function App() {
   const [currentUser, setCurrentUser] = useState(null);
   const [syncStatus, setSyncStatus] = useState(null);
   const [isAuthLoading, setIsAuthLoading] = useState(true);
+  const [isSyncingGoogleTasks, setIsSyncingGoogleTasks] = useState(false);
   const [todos, setTodos] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
   
@@ -99,6 +101,24 @@ function App() {
       setPendingVoiceCommand(null);
       setTranscription('');
       setSyncStatus(null);
+    }
+  };
+
+  const handleSyncGoogleTasks = async () => {
+    try {
+      setIsSyncingGoogleTasks(true);
+      const result = await syncGoogleTasks();
+      addNotification(
+        `Google Tasks synkade: ${result.importedCount || 0} nya, ${result.updatedCount || 0} uppdaterade`,
+        'success'
+      );
+      await loadTodos();
+      await loadSyncStatus();
+    } catch (error) {
+      console.error('Failed to sync Google Tasks:', error);
+      addNotification(error.response?.data?.message || 'Kunde inte synka Google Tasks', 'error');
+    } finally {
+      setIsSyncingGoogleTasks(false);
     }
   };
 
@@ -427,6 +447,16 @@ function App() {
             Logga ut
           </button>
         </div>
+
+        <button
+          type="button"
+          onClick={handleSyncGoogleTasks}
+          disabled={isSyncingGoogleTasks}
+          className="mb-6 w-full flex items-center justify-center gap-2 bg-gray-800 text-white py-2 rounded-lg hover:bg-gray-900 disabled:bg-gray-400"
+        >
+          <RefreshCw className={`w-4 h-4 ${isSyncingGoogleTasks ? 'animate-spin' : ''}`} />
+          {isSyncingGoogleTasks ? 'Synkar Google Tasks...' : 'Synka Google Tasks'}
+        </button>
 
         <form onSubmit={handleSubmit} className="mb-6 space-y-4">
           <div className="flex gap-4">

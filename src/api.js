@@ -111,6 +111,15 @@ export const fetchTodos = async () => {
   });
 };
 
+export const syncGoogleTasks = async () => {
+  return axiosRetry(async () => {
+    const response = await apiClient.post('/todos/sync/google', null, {
+      timeout: 60000,
+    });
+    return response.data;
+  });
+};
+
 export const createTodo = async (todo) => {
   return axiosRetry(async () => {
     const response = await apiClient.post('/todos', todo);
