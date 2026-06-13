@@ -1,5 +1,5 @@
 # Multi-stage build för ARM64
-FROM node:22-alpine AS builder
+FROM docker.io/library/node:22-alpine AS builder
 WORKDIR /app
 COPY package*.json ./
 RUN npm ci
@@ -7,7 +7,7 @@ COPY . .
 RUN npm run build
 
 # Nginx stage
-FROM nginx:alpine
+FROM docker.io/library/nginx:alpine
 RUN rm /etc/nginx/conf.d/default.conf && rm -rf /usr/share/nginx/html/*
 
 # Kopiera byggda filer
