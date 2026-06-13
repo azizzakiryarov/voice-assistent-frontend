@@ -9,6 +9,7 @@ RUN npm run build
 # Nginx stage
 FROM docker.io/library/nginx:alpine
 RUN rm /etc/nginx/conf.d/default.conf && rm -rf /usr/share/nginx/html/*
+RUN apk upgrade --no-cache libcrypto3 libssl3 libxml2
 
 # Kopiera byggda filer
 COPY --from=builder /app/dist /usr/share/nginx/html
