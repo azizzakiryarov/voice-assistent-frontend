@@ -128,7 +128,11 @@ export function VoiceRecorder({ onRecordingComplete, onPreviewReceived }) {
           onRecordingComplete(audioUrl);
         } catch (uploadError) {
           console.error('Error uploading recording:', uploadError);
-          setError(uploadError.response?.data?.message || 'Kunde inte ladda upp inspelning');
+          const isTimeout = uploadError.code === 'ECONNABORTED';
+          setError(
+            uploadError.response?.data?.message ||
+            (isTimeout ? 'Röstanalysen tog för lång tid. Försök med en kortare inspelning.' : 'Kunde inte analysera inspelningen')
+          );
         } finally {
           setIsProcessing(false);
         }

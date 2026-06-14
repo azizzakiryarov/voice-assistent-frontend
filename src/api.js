@@ -62,7 +62,7 @@ export const uploadVoiceRecording = async (audioBlob) => {
     formData.append('file', audioBlob, `recording.${extension}`);
 
     const response = await apiClient.post('/voice-command/preview', formData, {
-      timeout: 60000, // Längre timeout för filuppladdning
+      timeout: 180000, // Lokal Whisper + LLM kan ta över en minut på Raspberry Pi
     });
 
     return response.data;
