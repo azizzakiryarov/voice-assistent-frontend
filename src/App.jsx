@@ -2,19 +2,18 @@ import { useEffect, useState } from 'react';
 import {
   AlertCircle,
   Calendar,
-  Check,
   CheckCircle,
   Info,
   LogIn,
   LogOut,
   Mail,
   RefreshCw,
-  Trash2,
   Volume2,
   X
 } from 'lucide-react';
 import { VoiceRecorder } from './components/VoiceRecorder';
 import { EmailVerificationModal } from './components/EmailVerificationModal';
+import { TaskList } from './components/TaskList/TaskList';
 import {
   approveVoiceCommand,
   createTodo,
@@ -615,66 +614,13 @@ function App() {
             {isLoading ? (
               <div className="rounded-lg border border-zinc-200 bg-white p-6 text-center text-sm text-zinc-500 shadow-sm">Laddar todos...</div>
             ) : (
-              <ul className="space-y-2">
-                {todos.map((todo) => (
-                  <li
-                    key={todo.id}
-                    className="group flex items-start gap-3 rounded-lg border border-zinc-200 bg-white p-4 shadow-sm transition hover:border-zinc-300"
-                  >
-                    <button
-                      onClick={() => handleToggleTodo(todo.id, todo.completed)}
-                      className={`mt-0.5 flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full border transition-colors ${
-                        todo.completed
-                          ? 'border-emerald-600 bg-emerald-600'
-                          : 'border-zinc-300 bg-white hover:border-zinc-500'
-                      }`}
-                    >
-                      {todo.completed && <Check className="h-4 w-4 text-white" />}
-                    </button>
-                    <div className="min-w-0 flex-1">
-                      <span
-                        className={`block break-words text-sm font-medium ${
-                          todo.completed ? 'text-zinc-400 line-through' : 'text-zinc-950'
-                        }`}
-                      >
-                        {todo.description}
-                      </span>
-
-                      <div className="mt-2 flex flex-wrap items-center gap-2">
-                        {todo.dueDate && (
-                          <span
-                            className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs ${
-                              isOverdue(todo.dueDate) && !todo.completed
-                                ? 'border-rose-200 bg-rose-50 text-rose-700'
-                                : 'border-zinc-200 bg-zinc-50 text-zinc-600'
-                            }`}
-                          >
-                            <Calendar className="h-3 w-3" />
-                            {formatDate(todo.dueDate)}
-                            {isOverdue(todo.dueDate) && !todo.completed && ' · Försenad'}
-                          </span>
-                        )}
-                        {todo.syncStatus && (
-                          <span className="rounded-full border border-sky-200 bg-sky-50 px-2 py-0.5 text-xs text-sky-700">
-                            {todo.syncStatus === 'GOOGLE_TASKS_IMPORTED' ? 'Google Tasks' : 'Lokal'}
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                    <button
-                      onClick={() => handleDeleteTodo(todo.id)}
-                      className="rounded-lg p-2 text-zinc-400 transition-colors hover:bg-rose-50 hover:text-rose-600"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </button>
-                  </li>
-                ))}
-                {todos.length === 0 && (
-                  <li className="rounded-lg border border-dashed border-zinc-300 bg-white p-8 text-center text-sm text-zinc-500">
-                    Inga att göra-poster ännu
-                  </li>
-                )}
-              </ul>
+              <TaskList
+                todos={todos}
+                onToggleTodo={handleToggleTodo}
+                onDeleteTodo={handleDeleteTodo}
+                formatDate={formatDate}
+                isOverdue={isOverdue}
+              />
             )}
           </section>
 
