@@ -6,6 +6,7 @@ import { Calendar, Check, ChevronDown, Trash2 } from 'lucide-react';
  * @property {string|number} id
  * @property {string} title
  * @property {string} information
+ * @property {string} description
  * @property {boolean} completed
  * @property {string|null|undefined} dueDate
  * @property {string|null|undefined} syncStatus
@@ -37,8 +38,8 @@ export function TaskListItem({ task, onToggle, onDelete, formatDate, isOverdue }
             setIsExpanded(prev => !prev);
           }
         }}
-        className={`group grid w-full grid-cols-[auto_minmax(0,1fr)_auto_auto] items-start gap-3 px-4 py-3 text-left transition-colors hover:bg-zinc-50 sm:px-5 ${
-          task.completed ? 'bg-zinc-50/70' : 'bg-white'
+        className={`group grid w-full grid-cols-[auto_minmax(0,1fr)_auto] items-start gap-3 px-4 py-3 text-left outline-none transition-colors hover:bg-zinc-50 focus-visible:bg-zinc-50 focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-blue-500 sm:px-5 ${
+          task.completed ? 'bg-zinc-50 text-zinc-400' : 'bg-white text-zinc-950'
         }`}
         aria-expanded={isExpanded}
       >
@@ -51,55 +52,42 @@ export function TaskListItem({ task, onToggle, onDelete, formatDate, isOverdue }
             event.stopPropagation();
             onToggle(task.id, task.completed);
           }}
-          className={`mt-0.5 flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full border transition-colors ${
+          className={`mt-0.5 flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full border transition-colors ${
             task.completed
-              ? 'border-emerald-600 bg-emerald-600'
-              : 'border-zinc-300 bg-white group-hover:border-zinc-500'
+              ? 'border-blue-600 bg-blue-600'
+              : 'border-zinc-400 bg-white group-hover:border-blue-600'
           }`}
         >
-          {task.completed && <Check className="h-4 w-4 text-white" />}
+          {task.completed && <Check className="h-3.5 w-3.5 text-white" />}
         </button>
 
-        <span className="min-w-0">
-          <span
-            className={`block break-words text-sm font-medium leading-5 ${
+        <div className="min-w-0">
+          <p
+            className={`break-words text-sm font-medium leading-5 ${
               task.completed ? 'text-zinc-400 line-through' : 'text-zinc-950'
             }`}
           >
             {task.title}
-          </span>
-          <span
-            className={`mt-1 block break-words text-sm leading-5 ${
+          </p>
+          <p
+            className={`mt-1 break-words text-xs leading-5 sm:text-sm ${
               task.completed ? 'text-zinc-400' : 'text-zinc-500'
             }`}
           >
             {task.information}
-          </span>
-        </span>
-
-        <span className="hidden flex-wrap items-center justify-end gap-2 sm:flex">
+          </p>
           {hasDueDate && (
-            <span
-              className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs ${
-                overdue
-                  ? 'border-rose-200 bg-rose-50 text-rose-700'
-                  : 'border-zinc-200 bg-zinc-50 text-zinc-600'
-              }`}
-            >
-              <Calendar className="h-3 w-3" />
+            <p className={`mt-1 inline-flex items-center gap-1 text-xs ${overdue ? 'text-rose-600' : 'text-blue-600'}`}>
+              <Calendar className="h-3.5 w-3.5" />
               {formatDate(task.dueDate)}
-            </span>
+              {overdue && ' · Försenad'}
+            </p>
           )}
-          {task.syncStatus && (
-            <span className="rounded-full border border-sky-200 bg-sky-50 px-2 py-0.5 text-xs text-sky-700">
-              {task.syncStatus === 'GOOGLE_TASKS_IMPORTED' ? 'Google Tasks' : 'Lokal'}
-            </span>
-          )}
-        </span>
+        </div>
 
         <span className="flex items-center gap-1">
           <ChevronDown
-            className={`h-4 w-4 text-zinc-400 transition-transform ${isExpanded ? 'rotate-180' : ''}`}
+            className={`h-4 w-4 text-zinc-400 transition-transform group-hover:text-zinc-600 ${isExpanded ? 'rotate-180' : ''}`}
             aria-hidden="true"
           />
           <button
@@ -109,7 +97,7 @@ export function TaskListItem({ task, onToggle, onDelete, formatDate, isOverdue }
               event.stopPropagation();
               onDelete(task.id);
             }}
-            className="rounded-lg p-2 text-zinc-400 transition-colors hover:bg-rose-50 hover:text-rose-600"
+            className="rounded-full p-2 text-zinc-400 transition-colors hover:bg-rose-50 hover:text-rose-600"
           >
             <Trash2 className="h-4 w-4" />
           </button>
@@ -117,15 +105,22 @@ export function TaskListItem({ task, onToggle, onDelete, formatDate, isOverdue }
       </div>
 
       {isExpanded && (
-        <div className="space-y-2 bg-zinc-50 px-4 pb-4 pl-[3.25rem] pr-5 text-sm text-zinc-600 sm:pl-[3.75rem]">
-          <div className="grid gap-1 sm:grid-cols-[7rem_minmax(0,1fr)]">
-            <span className="text-xs font-medium uppercase tracking-wide text-zinc-400">ID</span>
-            <span className="break-all">{task.id}</span>
-          </div>
-          <div className="grid gap-1 sm:grid-cols-[7rem_minmax(0,1fr)]">
-            <span className="text-xs font-medium uppercase tracking-wide text-zinc-400">Status</span>
-            <span>{task.completed ? 'Slutförd' : 'Ej slutförd'}</span>
-          </div>
+        <div className="space-y-3 bg-zinc-50 px-4 pb-4 pl-[3.25rem] pr-5 text-sm text-zinc-600 sm:pl-[3.75rem]">
+          {task.description && (
+            <p className="break-words leading-6 text-zinc-700">{task.description}</p>
+          )}
+          <dl className="grid gap-2 sm:grid-cols-[7rem_minmax(0,1fr)]">
+            <dt className="text-xs font-medium uppercase text-zinc-400">ID</dt>
+            <dd className="break-all">{task.id}</dd>
+            <dt className="text-xs font-medium uppercase text-zinc-400">Status</dt>
+            <dd>{task.completed ? 'Slutförd' : 'Ej slutförd'}</dd>
+            {task.syncStatus && (
+              <>
+                <dt className="text-xs font-medium uppercase text-zinc-400">Källa</dt>
+                <dd>{task.syncStatus === 'GOOGLE_TASKS_IMPORTED' ? 'Google Tasks' : 'Lokal uppgift'}</dd>
+              </>
+            )}
+          </dl>
           {hasDueDate && (
             <div className="grid gap-1 sm:grid-cols-[7rem_minmax(0,1fr)]">
               <span className="text-xs font-medium uppercase tracking-wide text-zinc-400">Slutdatum</span>
