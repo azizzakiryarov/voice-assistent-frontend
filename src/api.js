@@ -2,7 +2,7 @@ import axios from 'axios';
 
 const API_URL = '/api/voice-assistent';
 const TEXT_ANALYSIS_API_URL = '/api/text-analysis';
-const TEXT_ANALYSIS_TIMEOUT_MS = 900000;
+const TEXT_ANALYSIS_TIMEOUT_MS = 1200000;
 
 // Skapa en axios-instans med gemensam konfiguration
 const apiClient = axios.create({
@@ -90,12 +90,10 @@ export const approveVoiceCommand = async (command) => {
 };
 
 export const analyzeText = async (payload) => {
-  return axiosRetry(async () => {
-    const response = await textAnalysisClient.post('', payload, {
-      timeout: TEXT_ANALYSIS_TIMEOUT_MS,
-    });
-    return response.data;
-  }, 1, 1000);
+  const response = await textAnalysisClient.post('', payload, {
+    timeout: TEXT_ANALYSIS_TIMEOUT_MS,
+  });
+  return response.data;
 };
 
 export const approveTextAnalysis = async (payload) => {
