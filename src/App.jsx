@@ -14,6 +14,7 @@ import {
 import { VoiceRecorder } from './components/VoiceRecorder';
 import { EmailVerificationModal } from './components/EmailVerificationModal';
 import { TaskList } from './components/TaskList/TaskList';
+import { TextAnalysisPanel } from './components/TextAnalysisPanel';
 import {
   approveVoiceCommand,
   createTodo,
@@ -477,6 +478,14 @@ function App() {
                 )}
               </div>
             </form>
+
+            <TextAnalysisPanel
+              addNotification={addNotification}
+              onApproved={() => {
+                loadTodos();
+                loadSyncStatus();
+              }}
+            />
 
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div>

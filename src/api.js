@@ -1,11 +1,18 @@
 import axios from 'axios';
 
 const API_URL = '/api/voice-assistent';
+const TEXT_ANALYSIS_API_URL = '/api/text-analysis';
 
 // Skapa en axios-instans med gemensam konfiguration
 const apiClient = axios.create({
   baseURL: API_URL,
   timeout: 30000, // 30 sekunder timeout
+  withCredentials: true,
+});
+
+const textAnalysisClient = axios.create({
+  baseURL: TEXT_ANALYSIS_API_URL,
+  timeout: 180000,
   withCredentials: true,
 });
 
@@ -55,6 +62,11 @@ apiClient.interceptors.response.use(
   }
 );
 
+textAnalysisClient.interceptors.response.use(
+  (response) => response,
+  (error) => Promise.reject(error)
+);
+
 export const uploadVoiceRecording = async (audioBlob) => {
   return axiosRetry(async () => {
     const formData = new FormData();
@@ -72,6 +84,24 @@ export const uploadVoiceRecording = async (audioBlob) => {
 export const approveVoiceCommand = async (command) => {
   return axiosRetry(async () => {
     const response = await apiClient.post('/voice-command/approve', command);
+    return response.data;
+  });
+};
+
+export const analyzeText = async (payload) => {
+  return axiosRetry(async () => {
+    const response = await textAnalysisClient.post('', payload, {
+      timeout: 180000,
+    });
+    return response.data;
+  }, 1, 1000);
+};
+
+export const approveTextAnalysis = async (payload) => {
+  return axiosRetry(async () => {
+    const response = await textAnalysisClient.post('/approve', payload, {
+      timeout: 60000,
+    });
     return response.data;
   });
 };
