@@ -89,7 +89,10 @@ export function TextAnalysisPanel({ onApproved, addNotification }) {
       });
       addNotification('Texten är analyserad och redo för granskning', 'success');
     } catch (error) {
-      addNotification(error.response?.data?.message || 'Kunde inte analysera texten', 'error');
+      const message = error.code === 'ECONNABORTED'
+        ? 'Textanalysen tog för lång tid. Försök igen med kortare text eller vänta tills modellen är uppvärmd.'
+        : error.response?.data?.message || 'Kunde inte analysera texten';
+      addNotification(message, 'error');
     } finally {
       setIsAnalyzing(false);
     }
