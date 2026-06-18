@@ -1,10 +1,16 @@
 import { useMemo, useState } from 'react';
 import { AlertTriangle, CalendarPlus, Check, ClipboardList, FileText, Loader2, X } from 'lucide-react';
-import { analyzeText, approveTextAnalysis } from '../api';
+import { analyzeTextWithJob, approveTextAnalysis } from '../api';
 
 const categories = ['SCHOOL', 'WORK', 'FAMILY', 'HEALTH', 'FINANCE', 'TRAVEL', 'AUTHORITY', 'MEETING', 'OTHER'];
 const urgencies = ['CRITICAL', 'HIGH', 'MEDIUM', 'LOW'];
 const deadlineTypes = ['EXACT_DATE', 'EXACT_DATE_TIME', 'AS_SOON_AS_POSSIBLE', 'EARLIEST_CONVENIENCE', 'RECURRING', 'NONE', 'UNKNOWN'];
+const jobStatusText = {
+  PENDING: 'Väntar på ledig analyskö...',
+  RUNNING: 'Analyserar med lokal LLM...',
+  SUCCEEDED: 'Analysen är klar',
+  FAILED: 'Analysen misslyckades'
+};
 
 const nowWithOffset = () => {
   const date = new Date();
@@ -58,6 +64,7 @@ export function TextAnalysisPanel({ onApproved, addNotification }) {
   const [analysis, setAnalysis] = useState(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [isApproving, setIsApproving] = useState(false);
+  const [analysisStatus, setAnalysisStatus] = useState('');
 
   const selectedCount = useMemo(() => {
     if (!analysis) return 0;
@@ -73,13 +80,17 @@ export function TextAnalysisPanel({ onApproved, addNotification }) {
 
     try {
       setIsAnalyzing(true);
-      const result = await analyzeText({
-        title: title.trim() || null,
-        text,
-        sourceType,
-        receivedAt: nowWithOffset(),
-        timeZone: 'Europe/Stockholm'
-      });
+      setAnalysisStatus('Startar analys...');
+      const result = await analyzeTextWithJob(
+        {
+          title: title.trim() || null,
+          text,
+          sourceType,
+          receivedAt: nowWithOffset(),
+          timeZone: 'Europe/Stockholm'
+        },
+        (job) => setAnalysisStatus(jobStatusText[job.status] || 'Analyserar...')
+      );
       setAnalysis({
         ...result,
         events: withSelection(result.events),
@@ -90,11 +101,12 @@ export function TextAnalysisPanel({ onApproved, addNotification }) {
       addNotification('Texten är analyserad och redo för granskning', 'success');
     } catch (error) {
       const message = error.code === 'ECONNABORTED'
-        ? 'Textanalysen tog för lång tid. Försök igen med kortare text eller vänta tills modellen är uppvärmd.'
-        : error.response?.data?.message || 'Kunde inte analysera texten';
+        ? 'Textanalysen tog för lång tid. Försök igen när modellen är ledig.'
+        : error.response?.data?.message || error.message || 'Kunde inte analysera texten';
       addNotification(message, 'error');
     } finally {
       setIsAnalyzing(false);
+      setAnalysisStatus('');
     }
   };
 
@@ -172,7 +184,9 @@ export function TextAnalysisPanel({ onApproved, addNotification }) {
         />
 
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-          <span className="text-xs text-zinc-500">{text.length}/12000 tecken</span>
+          <span className="text-xs text-zinc-500">
+            {isAnalyzing && analysisStatus ? analysisStatus : `${text.length}/12000 tecken`}
+          </span>
           <button
             type="submit"
             disabled={isAnalyzing}

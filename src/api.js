@@ -3,6 +3,7 @@ import axios from 'axios';
 const API_URL = '/api/voice-assistent';
 const TEXT_ANALYSIS_API_URL = '/api/text-analysis';
 const TEXT_ANALYSIS_TIMEOUT_MS = 1200000;
+const TEXT_ANALYSIS_POLL_INTERVAL_MS = 5000;
 
 // Skapa en axios-instans med gemensam konfiguration
 const apiClient = axios.create({
@@ -94,6 +95,43 @@ export const analyzeText = async (payload) => {
     timeout: TEXT_ANALYSIS_TIMEOUT_MS,
   });
   return response.data;
+};
+
+export const startTextAnalysisJob = async (payload) => {
+  const response = await textAnalysisClient.post('/jobs', payload, {
+    timeout: 30000,
+  });
+  return response.data;
+};
+
+export const fetchTextAnalysisJob = async (jobId) => {
+  const response = await textAnalysisClient.get(`/jobs/${encodeURIComponent(jobId)}`, {
+    timeout: 30000,
+  });
+  return response.data;
+};
+
+export const analyzeTextWithJob = async (payload, onJobUpdate) => {
+  let job = await startTextAnalysisJob(payload);
+  onJobUpdate?.(job);
+
+  const deadline = Date.now() + TEXT_ANALYSIS_TIMEOUT_MS;
+  while (Date.now() < deadline) {
+    if (job.status === 'SUCCEEDED') {
+      return job.result;
+    }
+    if (job.status === 'FAILED') {
+      throw new Error(job.message || 'Kunde inte analysera texten');
+    }
+
+    await new Promise(resolve => setTimeout(resolve, TEXT_ANALYSIS_POLL_INTERVAL_MS));
+    job = await fetchTextAnalysisJob(job.jobId);
+    onJobUpdate?.(job);
+  }
+
+  const timeoutError = new Error('Textanalysen tog för lång tid');
+  timeoutError.code = 'ECONNABORTED';
+  throw timeoutError;
 };
 
 export const approveTextAnalysis = async (payload) => {
