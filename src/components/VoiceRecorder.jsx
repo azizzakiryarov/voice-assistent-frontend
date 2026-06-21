@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef } from 'react';
-import { Mic, Square, AlertCircle } from 'lucide-react';
-import { uploadVoiceRecording } from '../api.js';
+import { Mic, Square, AlertCircle, Timer } from 'lucide-react';
+import { uploadVoiceRecording, VOICE_RECORDING_TIMEOUT_MS } from '../api.js';
 
 const VOICE_LANGUAGE_OPTIONS = [
   { value: 'sv', label: 'SV', title: 'Svenska' },
@@ -13,9 +13,18 @@ const normalizeVoiceLanguage = (value) => (
   VOICE_LANGUAGE_OPTIONS.some(option => option.value === value) ? value : 'sv'
 );
 
+const formatDuration = (milliseconds) => {
+  const totalSeconds = Math.max(0, Math.ceil(milliseconds / 1000));
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = String(totalSeconds % 60).padStart(2, '0');
+  return `${minutes}:${seconds}`;
+};
+
 export function VoiceRecorder({ onRecordingComplete, onPreviewReceived }) {
   const [isRecording, setIsRecording] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [processingStartedAt, setProcessingStartedAt] = useState(null);
+  const [processingRemainingMs, setProcessingRemainingMs] = useState(VOICE_RECORDING_TIMEOUT_MS);
   const [error, setError] = useState(null);
   const [isSupported, setIsSupported] = useState(true);
   const [voiceLanguage, setVoiceLanguage] = useState(() => {
@@ -67,6 +76,20 @@ export function VoiceRecorder({ onRecordingComplete, onPreviewReceived }) {
 
     checkSupport();
   }, []);
+
+  useEffect(() => {
+    if (!isProcessing || !processingStartedAt) {
+      return undefined;
+    }
+
+    const updateRemainingTime = () => {
+      setProcessingRemainingMs(Math.max(0, VOICE_RECORDING_TIMEOUT_MS - (Date.now() - processingStartedAt)));
+    };
+
+    updateRemainingTime();
+    const intervalId = window.setInterval(updateRemainingTime, 1000);
+    return () => window.clearInterval(intervalId);
+  }, [isProcessing, processingStartedAt]);
 
   const updateVoiceLanguage = (language) => {
     const normalizedLanguage = normalizeVoiceLanguage(language);
@@ -136,6 +159,9 @@ export function VoiceRecorder({ onRecordingComplete, onPreviewReceived }) {
 
       mediaRecorder.current.onstop = async () => {
         console.log('Inspelning stoppad, processerar...');
+        const processingStart = Date.now();
+        setProcessingStartedAt(processingStart);
+        setProcessingRemainingMs(VOICE_RECORDING_TIMEOUT_MS);
         setIsProcessing(true);
 
         const mimeType = mediaRecorder.current?.mimeType || chunks.current[0]?.type || 'audio/webm';
@@ -163,6 +189,8 @@ export function VoiceRecorder({ onRecordingComplete, onPreviewReceived }) {
           );
         } finally {
           setIsProcessing(false);
+          setProcessingStartedAt(null);
+          setProcessingRemainingMs(VOICE_RECORDING_TIMEOUT_MS);
         }
       };
 
@@ -202,6 +230,11 @@ export function VoiceRecorder({ onRecordingComplete, onPreviewReceived }) {
       setIsRecording(false);
     }
   };
+
+  const processingProgressPercent = Math.max(
+    0,
+    Math.min(100, (processingRemainingMs / VOICE_RECORDING_TIMEOUT_MS) * 100)
+  );
 
   if (!isSupported) {
     return (
@@ -268,6 +301,24 @@ export function VoiceRecorder({ onRecordingComplete, onPreviewReceived }) {
         <p className="text-sm text-rose-600 text-center max-w-xs">
           {error}
         </p>
+      )}
+
+      {isProcessing && (
+        <div className="w-full max-w-xs rounded-lg border border-zinc-200 bg-white px-3 py-2 text-zinc-700 shadow-sm" aria-live="polite">
+          <div className="flex items-center justify-center gap-2 text-sm">
+            <Timer className="h-4 w-4 text-teal-700" />
+            <span>
+              Väntar på svar:{' '}
+              <span className="font-medium tabular-nums">{formatDuration(processingRemainingMs)}</span> kvar
+            </span>
+          </div>
+          <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-zinc-200">
+            <div
+              className="h-full rounded-full bg-teal-600 transition-[width] duration-500"
+              style={{ width: `${processingProgressPercent}%` }}
+            />
+          </div>
+        </div>
       )}
       
       {isRecording && (

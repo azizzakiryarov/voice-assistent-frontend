@@ -5,6 +5,7 @@ const TEXT_ANALYSIS_API_URL = '/api/text-analysis';
 const FORM_SCAN_API_URL = '/api/form-scans';
 const TEXT_ANALYSIS_TIMEOUT_MS = 1200000;
 const TEXT_ANALYSIS_POLL_INTERVAL_MS = 5000;
+export const VOICE_RECORDING_TIMEOUT_MS = 180000;
 
 // Skapa en axios-instans med gemensam konfiguration
 const apiClient = axios.create({
@@ -86,7 +87,7 @@ export const uploadVoiceRecording = async (audioBlob, language = 'sv') => {
     }
 
     const response = await apiClient.post('/voice-command/preview', formData, {
-      timeout: 180000, // Lokal Whisper + LLM kan ta över en minut på Raspberry Pi
+      timeout: VOICE_RECORDING_TIMEOUT_MS, // Lokal Whisper + LLM kan ta över en minut på Raspberry Pi
     });
 
     return response.data;
