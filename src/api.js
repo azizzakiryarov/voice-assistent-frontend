@@ -76,11 +76,14 @@ textAnalysisClient.interceptors.response.use(
   (error) => Promise.reject(error)
 );
 
-export const uploadVoiceRecording = async (audioBlob) => {
+export const uploadVoiceRecording = async (audioBlob, language = 'sv') => {
   return axiosRetry(async () => {
     const formData = new FormData();
     const extension = audioBlob.type === 'audio/mp4' ? 'm4a' : 'webm';
     formData.append('file', audioBlob, `recording.${extension}`);
+    if (language) {
+      formData.append('language', language);
+    }
 
     const response = await apiClient.post('/voice-command/preview', formData, {
       timeout: 180000, // Lokal Whisper + LLM kan ta över en minut på Raspberry Pi

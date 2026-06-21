@@ -2,11 +2,29 @@ import { useEffect, useState, useRef } from 'react';
 import { Mic, Square, AlertCircle } from 'lucide-react';
 import { uploadVoiceRecording } from '../api.js';
 
+const VOICE_LANGUAGE_OPTIONS = [
+  { value: 'sv', label: 'SV', title: 'Svenska' },
+  { value: 'ru', label: 'RU', title: 'Ryska' },
+  { value: 'en', label: 'EN', title: 'Engelska' },
+  { value: 'auto', label: 'Auto', title: 'Automatisk' },
+];
+
+const normalizeVoiceLanguage = (value) => (
+  VOICE_LANGUAGE_OPTIONS.some(option => option.value === value) ? value : 'sv'
+);
+
 export function VoiceRecorder({ onRecordingComplete, onPreviewReceived }) {
   const [isRecording, setIsRecording] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [error, setError] = useState(null);
   const [isSupported, setIsSupported] = useState(true);
+  const [voiceLanguage, setVoiceLanguage] = useState(() => {
+    try {
+      return normalizeVoiceLanguage(window.localStorage?.getItem('voice-assistant-language'));
+    } catch {
+      return 'sv';
+    }
+  });
   const mediaRecorder = useRef(null);
   const mediaStream = useRef(null);
   const chunks = useRef([]);
@@ -49,6 +67,16 @@ export function VoiceRecorder({ onRecordingComplete, onPreviewReceived }) {
 
     checkSupport();
   }, []);
+
+  const updateVoiceLanguage = (language) => {
+    const normalizedLanguage = normalizeVoiceLanguage(language);
+    setVoiceLanguage(normalizedLanguage);
+    try {
+      window.localStorage?.setItem('voice-assistant-language', normalizedLanguage);
+    } catch {
+      // localStorage can be unavailable in private contexts.
+    }
+  };
 
   useEffect(() => {
     return () => {
@@ -118,7 +146,7 @@ export function VoiceRecorder({ onRecordingComplete, onPreviewReceived }) {
 
         try {
           // Skicka filen för transkribering och email-extrahering
-          const response = await uploadVoiceRecording(blob);
+          const response = await uploadVoiceRecording(blob, voiceLanguage);
           
           console.log('Upload response:', response);
           
@@ -196,23 +224,45 @@ export function VoiceRecorder({ onRecordingComplete, onPreviewReceived }) {
 
   return (
     <div className="flex flex-col items-center gap-2">
-      <button
-        type="button"
-        onClick={isRecording ? stopRecording : startRecording}
-        disabled={isProcessing}
-        className={`flex h-11 w-11 items-center justify-center rounded-lg shadow-sm transition-colors ${
-          isProcessing ? 'bg-zinc-300 cursor-not-allowed' :
-          isRecording ? 'bg-rose-600 hover:bg-rose-700' : 'bg-teal-600 hover:bg-teal-700'
-        }`}
-      >
-        {isProcessing ? (
-          <div className="w-6 h-6 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-        ) : isRecording ? (
-          <Square className="w-6 h-6 text-white" />
-        ) : (
-          <Mic className="w-6 h-6 text-white" />
-        )}
-      </button>
+      <div className="flex items-center gap-2">
+        <div className="flex h-11 items-center rounded-lg border border-zinc-200 bg-white p-1 shadow-sm">
+          {VOICE_LANGUAGE_OPTIONS.map(option => (
+            <button
+              key={option.value}
+              type="button"
+              title={option.title}
+              aria-pressed={voiceLanguage === option.value}
+              onClick={() => updateVoiceLanguage(option.value)}
+              disabled={isRecording || isProcessing}
+              className={`h-8 min-w-9 rounded-md px-2 text-xs font-medium transition-colors ${
+                voiceLanguage === option.value
+                  ? 'bg-zinc-950 text-white'
+                  : 'text-zinc-600 hover:bg-zinc-100 hover:text-zinc-950'
+              } disabled:cursor-not-allowed disabled:opacity-60`}
+            >
+              {option.label}
+            </button>
+          ))}
+        </div>
+
+        <button
+          type="button"
+          onClick={isRecording ? stopRecording : startRecording}
+          disabled={isProcessing}
+          className={`flex h-11 w-11 items-center justify-center rounded-lg shadow-sm transition-colors ${
+            isProcessing ? 'bg-zinc-300 cursor-not-allowed' :
+            isRecording ? 'bg-rose-600 hover:bg-rose-700' : 'bg-teal-600 hover:bg-teal-700'
+          }`}
+        >
+          {isProcessing ? (
+            <div className="w-6 h-6 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+          ) : isRecording ? (
+            <Square className="w-6 h-6 text-white" />
+          ) : (
+            <Mic className="w-6 h-6 text-white" />
+          )}
+        </button>
+      </div>
       
       {error && (
         <p className="text-sm text-rose-600 text-center max-w-xs">
