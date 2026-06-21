@@ -2,6 +2,7 @@ import axios from 'axios';
 
 const API_URL = '/api/voice-assistent';
 const TEXT_ANALYSIS_API_URL = '/api/text-analysis';
+const FORM_SCAN_API_URL = '/api/form-scans';
 const TEXT_ANALYSIS_TIMEOUT_MS = 1200000;
 const TEXT_ANALYSIS_POLL_INTERVAL_MS = 5000;
 
@@ -14,6 +15,12 @@ const apiClient = axios.create({
 
 const textAnalysisClient = axios.create({
   baseURL: TEXT_ANALYSIS_API_URL,
+  timeout: TEXT_ANALYSIS_TIMEOUT_MS,
+  withCredentials: true,
+});
+
+const formScanClient = axios.create({
+  baseURL: FORM_SCAN_API_URL,
   timeout: TEXT_ANALYSIS_TIMEOUT_MS,
   withCredentials: true,
 });
@@ -141,6 +148,22 @@ export const approveTextAnalysis = async (payload) => {
     });
     return response.data;
   });
+};
+
+export const scanForm = async (file) => {
+  const formData = new FormData();
+  formData.append('file', file, file.name || 'form-photo.jpg');
+  const response = await formScanClient.post('', formData, {
+    timeout: TEXT_ANALYSIS_TIMEOUT_MS,
+  });
+  return response.data;
+};
+
+export const approveFormScan = async (scanId, payload) => {
+  const response = await formScanClient.post(`/${encodeURIComponent(scanId)}/approve`, payload, {
+    timeout: 60000,
+  });
+  return response.data;
 };
 
 export const fetchCurrentUser = async () => {

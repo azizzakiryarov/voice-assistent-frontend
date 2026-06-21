@@ -15,6 +15,7 @@ import { VoiceRecorder } from './components/VoiceRecorder';
 import { EmailVerificationModal } from './components/EmailVerificationModal';
 import { TaskList } from './components/TaskList/TaskList';
 import { TextAnalysisPanel } from './components/TextAnalysisPanel';
+import { FormScanPanel } from './components/FormScanPanel';
 import {
   approveVoiceCommand,
   createTodo,
@@ -480,6 +481,14 @@ function App() {
             </form>
 
             <TextAnalysisPanel
+              addNotification={addNotification}
+              onApproved={() => {
+                loadTodos();
+                loadSyncStatus();
+              }}
+            />
+
+            <FormScanPanel
               addNotification={addNotification}
               onApproved={() => {
                 loadTodos();
