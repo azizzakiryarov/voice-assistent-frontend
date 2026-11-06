@@ -36,7 +36,7 @@ const getTaskInformation = (todo, formatDate) => {
   }
 
   if (todo.syncStatus) {
-    informationParts.push(todo.syncStatus === 'GOOGLE_TASKS_IMPORTED' ? 'Synkad från Google Tasks' : 'Lokal uppgift');
+    informationParts.push(todo.syncStatus.startsWith('GOOGLE_TASKS') ? 'Synkad med Google Tasks' : 'Lokal uppgift');
   }
 
   informationParts.push(`ID ${todo.id}`);
