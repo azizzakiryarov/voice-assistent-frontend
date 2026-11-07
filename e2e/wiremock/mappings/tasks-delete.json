@@ -1,0 +1,9 @@
+{
+  "request": {
+    "method": "DELETE",
+    "urlPathPattern": "/tasks/v1/lists/[^/]+/tasks/[^/]+"
+  },
+  "response": {
+    "status": 204
+  }
+}
