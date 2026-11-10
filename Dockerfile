@@ -9,7 +9,8 @@ RUN npm run build
 # Nginx stage
 FROM docker.io/library/nginx:alpine
 RUN rm /etc/nginx/conf.d/default.conf && rm -rf /usr/share/nginx/html/*
-RUN apk upgrade --no-cache libcrypto3 libssl3 libxml2
+# Uppgradera alla paket så att rättningar i Alpine kommer med utan att nämnas en och en
+RUN apk upgrade --no-cache
 
 # Kopiera byggda filer
 COPY --from=builder /app/dist /usr/share/nginx/html
