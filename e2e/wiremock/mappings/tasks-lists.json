@@ -1,0 +1,20 @@
+{
+  "request": {
+    "method": "GET",
+    "urlPath": "/tasks/v1/users/@me/lists"
+  },
+  "response": {
+    "status": 200,
+    "headers": {
+      "Content-Type": "application/json; charset=utf-8"
+    },
+    "jsonBody": {
+      "items": [
+        {
+          "id": "e2e-list",
+          "title": "Mina uppgifter"
+        }
+      ]
+    }
+  }
+}

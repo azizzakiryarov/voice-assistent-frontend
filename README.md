@@ -20,6 +20,28 @@ npm run lint
 npm run build
 ```
 
+## End-to-end-tester
+
+Playwright kör appen som en användare: loggar in, skapar, klarmarkerar och raderar uppgifter, synkar,
+spelar in ett röstkommando, analyserar ett mejl och skannar ett formulär. Frontend och backend är de
+riktiga, men Google (inloggning, Tasks, Calendar), Ollama och Whisper är utbytta mot falska tjänster i
+[`e2e/compose.yml`](e2e/compose.yml): mock-oauth2-server och WireMock. Testerna kontrollerar också att
+inget skickas till Google förrän användaren har godkänt.
+
+```bash
+npm run e2e:services        # PostgreSQL, falsk Google-inloggning och WireMock (Docker eller Podman)
+npm run e2e                 # startar backend med profilen e2e och Vite, kör testerna
+npm run e2e:services:down
+npm run e2e:smoke           # skrivskyddade kontroller mot produktion
+```
+
+Backend-repot förväntas ligga bredvid (`../voice-assistant-backend`), annars anges sökvägen med
+`BACKEND_DIR`. Formulärtestet hoppas över om `tesseract` saknas. I CI körs sviten på varje PR och
+röktestet varje morgon.
+
+**Begränsning:** webbläsarens egen ljudinspelning testas inte. Testet byter ut mikrofonen mot en färdig
+inspelning, eftersom en webbläsare utan skärm inte kan spela in ljud på ett pålitligt sätt.
+
 ## Struktur
 
 ```text

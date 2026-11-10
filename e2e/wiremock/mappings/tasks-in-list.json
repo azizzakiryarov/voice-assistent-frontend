@@ -1,0 +1,37 @@
+{
+  "request": {
+    "method": "GET",
+    "urlPath": "/tasks/v1/lists/e2e-list/tasks"
+  },
+  "response": {
+    "status": 200,
+    "headers": {
+      "Content-Type": "application/json; charset=utf-8"
+    },
+    "jsonBody": {
+      "items": [
+        {
+          "id": "g-open",
+          "title": "Uppgift skapad i Google",
+          "status": "needsAction",
+          "position": "00000000000000000001",
+          "updated": "2026-11-01T10:00:00.000Z"
+        },
+        {
+          "id": "g-done",
+          "title": "Gammal klar uppgift",
+          "status": "completed",
+          "position": "00000000000000000002",
+          "updated": "2026-10-01T10:00:00.000Z"
+        },
+        {
+          "id": "g-deleted",
+          "title": "Raderad i Google",
+          "status": "needsAction",
+          "deleted": true,
+          "updated": "2026-11-02T10:00:00.000Z"
+        }
+      ]
+    }
+  }
+}

@@ -1,0 +1,14 @@
+{
+  "priority": 5,
+  "request": {
+    "method": "POST",
+    "urlPath": "/api/chat"
+  },
+  "response": {
+    "status": 200,
+    "headers": {
+      "Content-Type": "application/json; charset=utf-8"
+    },
+    "body": "{\"model\": \"llama3.2:1b\", \"created_at\": \"2026-11-06T10:00:00Z\", \"message\": {\"role\": \"assistant\", \"content\": \"{\\\"summary\\\": \\\"Föräldramöte och en blankett att lämna in.\\\", \\\"language\\\": \\\"sv\\\", \\\"events\\\": [{\\\"title\\\": \\\"Föräldramöte\\\", \\\"description\\\": \\\"Information om vårterminen.\\\", \\\"startDateTime\\\": \\\"2027-03-15T18:00:00+01:00\\\", \\\"endDateTime\\\": \\\"2027-03-15T19:00:00+01:00\\\", \\\"allDay\\\": false, \\\"location\\\": \\\"Aulan\\\", \\\"category\\\": \\\"SCHOOL\\\", \\\"urgency\\\": \\\"MEDIUM\\\", \\\"confidence\\\": 0.9, \\\"requiresConfirmation\\\": false, \\\"sourceText\\\": \\\"Föräldramöte 15 mars 2027 klockan 18-19 i aulan.\\\"}], \\\"todos\\\": [{\\\"title\\\": \\\"Lämna in blanketten\\\", \\\"description\\\": null, \\\"deadline\\\": \\\"2027-03-10\\\", \\\"deadlineType\\\": \\\"EXACT_DATE\\\", \\\"recurrence\\\": null, \\\"category\\\": \\\"SCHOOL\\\", \\\"urgency\\\": \\\"HIGH\\\", \\\"confidence\\\": 0.9, \\\"requiresConfirmation\\\": false, \\\"sourceText\\\": \\\"Lämna in blanketten senast 10 mars 2027.\\\"}], \\\"informationalItems\\\": [], \\\"warnings\\\": []}\"}, \"done\": true, \"done_reason\": \"stop\", \"total_duration\": 1000, \"load_duration\": 1000, \"prompt_eval_count\": 10, \"prompt_eval_duration\": 1000, \"eval_count\": 10, \"eval_duration\": 1000}"
+  }
+}

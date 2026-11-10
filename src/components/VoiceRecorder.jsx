@@ -282,6 +282,7 @@ export function VoiceRecorder({ onRecordingComplete, onPreviewReceived }) {
           type="button"
           onClick={isRecording ? stopRecording : startRecording}
           disabled={isProcessing}
+          aria-label={isRecording ? 'Stoppa inspelning' : 'Spela in röstkommando'}
           className={`flex h-11 w-11 items-center justify-center rounded-lg shadow-sm transition-colors ${
             isProcessing ? 'bg-zinc-300 cursor-not-allowed' :
             isRecording ? 'bg-rose-600 hover:bg-rose-700' : 'bg-teal-600 hover:bg-teal-700'

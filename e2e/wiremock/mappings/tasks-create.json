@@ -1,0 +1,13 @@
+{
+  "request": {
+    "method": "POST",
+    "urlPath": "/tasks/v1/lists/@default/tasks"
+  },
+  "response": {
+    "status": 200,
+    "headers": {
+      "Content-Type": "application/json; charset=utf-8"
+    },
+    "body": "{\"id\": \"created-{{randomValue length=12 type='ALPHANUMERIC'}}\", \"position\": \"00000000000000000009\", \"updated\": \"2026-11-06T10:00:00.000Z\", \"status\": \"needsAction\"}"
+  }
+}
