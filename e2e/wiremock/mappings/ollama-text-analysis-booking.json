@@ -1,0 +1,19 @@
+{
+  "priority": 2,
+  "request": {
+    "method": "POST",
+    "urlPath": "/api/chat",
+    "bodyPatterns": [
+      {
+        "contains": "Sparring"
+      }
+    ]
+  },
+  "response": {
+    "status": 200,
+    "headers": {
+      "Content-Type": "application/json; charset=utf-8"
+    },
+    "body": "{\"model\": \"llama3.2:1b\", \"created_at\": \"2026-11-11T10:00:00Z\", \"message\": {\"role\": \"assistant\", \"content\": \"{\\\"summary\\\": \\\"Bokning av sparringpass.\\\", \\\"language\\\": \\\"sv\\\", \\\"events\\\": [{\\\"title\\\": \\\"Sparring all levels\\\", \\\"description\\\": \\\"Sparringpass\\\", \\\"startDateTime\\\": \\\"2027-03-20T12:00:00+01:00\\\", \\\"endDateTime\\\": null, \\\"allDay\\\": true, \\\"location\\\": \\\"Allstars Training Center AB\\\", \\\"category\\\": \\\"WORK\\\", \\\"urgency\\\": \\\"HIGH\\\", \\\"confidence\\\": 0.9, \\\"requiresConfirmation\\\": true, \\\"sourceText\\\": \\\"Tidpunkt för passet: 2027-03-20 12:00\\\"}, {\\\"title\\\": \\\"Sparring all levels\\\", \\\"description\\\": \\\"Sparringpass\\\", \\\"startDateTime\\\": \\\"2027-03-20T12:00:00+01:00\\\", \\\"endDateTime\\\": null, \\\"allDay\\\": true, \\\"location\\\": \\\"Allstars Training Center AB\\\", \\\"category\\\": \\\"WORK\\\", \\\"urgency\\\": \\\"HIGH\\\", \\\"confidence\\\": 0.9, \\\"requiresConfirmation\\\": true, \\\"sourceText\\\": \\\"Namn på passet: Sparring all levels\\\"}], \\\"todos\\\": [{\\\"title\\\": \\\"Bokning\\\", \\\"description\\\": null, \\\"deadline\\\": \\\"2027-03-20T12:00:00+01:00\\\", \\\"deadlineType\\\": \\\"AS_SOON_AS_POSSIBLE\\\", \\\"recurrence\\\": null, \\\"category\\\": \\\"WORK\\\", \\\"urgency\\\": \\\"HIGH\\\", \\\"confidence\\\": 0.9, \\\"requiresConfirmation\\\": true, \\\"sourceText\\\": \\\"Detaljer kring bokning\\\"}], \\\"informationalItems\\\": [{\\\"title\\\": \\\"Sparring all levels\\\", \\\"description\\\": null, \\\"category\\\": \\\"OTHER\\\", \\\"sourceText\\\": \\\"Namn på passet\\\"}], \\\"warnings\\\": [{\\\"code\\\": \\\"WARNING\\\", \\\"message\\\": \\\"Vad är det här du ska göra?\\\", \\\"requiresUserAttention\\\": true}]}\"}, \"done\": true, \"done_reason\": \"stop\", \"total_duration\": 1000, \"load_duration\": 1000, \"prompt_eval_count\": 10, \"prompt_eval_duration\": 1000, \"eval_count\": 10, \"eval_duration\": 1000}"
+  }
+}

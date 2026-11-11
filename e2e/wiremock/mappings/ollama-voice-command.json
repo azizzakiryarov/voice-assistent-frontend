@@ -5,7 +5,7 @@
     "urlPath": "/api/chat",
     "bodyPatterns": [
       {
-        "contains": "TODO|MEETING|UNKNOWN"
+        "contains": "Extract a voice command"
       }
     ]
   },
