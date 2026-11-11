@@ -26,9 +26,10 @@ const withSelection = (items = []) => items.map(item => ({ ...item, selected: tr
 
 const stripSelection = ({ selected: _selected, ...item }) => item;
 
-const dateTimeInputValue = (value) => {
+// A date field shows nothing for a value with a time, so all-day events get only the date part.
+const dateTimeInputValue = (value, allDay = false) => {
   if (!value) return '';
-  return value.length === 10 ? value : value.slice(0, 16);
+  return allDay || value.length === 10 ? value.slice(0, 10) : value.slice(0, 16);
 };
 
 const fromDateTimeInput = (value, allDay = false) => {
@@ -108,6 +109,24 @@ export function TextAnalysisPanel({ onApproved, addNotification }) {
       setIsAnalyzing(false);
       setAnalysisStatus('');
     }
+  };
+
+  // Switching to a timed event keeps the date and starts at 09:00 so that the time field has a value.
+  const setAllDay = (index, allDay) => {
+    setAnalysis(prev => ({
+      ...prev,
+      events: prev.events.map((item, itemIndex) => {
+        if (itemIndex !== index) return item;
+        const startDate = item.startDateTime ? item.startDateTime.slice(0, 10) : null;
+        const endDate = item.endDateTime ? item.endDateTime.slice(0, 10) : null;
+        return {
+          ...item,
+          allDay,
+          startDateTime: allDay ? startDate : startDate && `${startDate}T09:00:00`,
+          endDateTime: allDay ? endDate : null,
+        };
+      })
+    }));
   };
 
   const updateItem = (section, index, field, value) => {
@@ -249,7 +268,7 @@ export function TextAnalysisPanel({ onApproved, addNotification }) {
                     <Field label="Start">
                       <input
                         type={item.allDay ? 'date' : 'datetime-local'}
-                        value={dateTimeInputValue(item.startDateTime)}
+                        value={dateTimeInputValue(item.startDateTime, item.allDay)}
                         onChange={(event) => updateItem('events', index, 'startDateTime', fromDateTimeInput(event.target.value, item.allDay))}
                         className="min-h-9 w-full rounded-lg border border-zinc-300 px-3 text-sm outline-none focus:border-teal-600 focus:ring-4 focus:ring-teal-100"
                       />
@@ -257,11 +276,20 @@ export function TextAnalysisPanel({ onApproved, addNotification }) {
                     <Field label="Slut">
                       <input
                         type={item.allDay ? 'date' : 'datetime-local'}
-                        value={dateTimeInputValue(item.endDateTime)}
+                        value={dateTimeInputValue(item.endDateTime, item.allDay)}
                         onChange={(event) => updateItem('events', index, 'endDateTime', fromDateTimeInput(event.target.value, item.allDay))}
                         className="min-h-9 w-full rounded-lg border border-zinc-300 px-3 text-sm outline-none focus:border-teal-600 focus:ring-4 focus:ring-teal-100"
                       />
                     </Field>
+                    <label className="flex items-center gap-2 text-sm text-zinc-700 sm:col-span-2">
+                      <input
+                        type="checkbox"
+                        checked={Boolean(item.allDay)}
+                        onChange={(event) => setAllDay(index, event.target.checked)}
+                        className="h-4 w-4"
+                      />
+                      Heldag
+                    </label>
                     <Field label="Kategori">
                       <select
                         value={item.category || 'OTHER'}
