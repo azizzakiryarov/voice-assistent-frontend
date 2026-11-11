@@ -56,7 +56,8 @@ test('en bokning med klockslag visar tid och längd och inga upprepningar', asyn
   await expect.poll(async () => (await sentRequests(request, 'POST', '/calendar-api/calendar/v3/calendars/primary/events')).length)
     .toBe(1);
   const [event] = await sentRequests(request, 'POST', '/calendar-api/calendar/v3/calendars/primary/events');
-  expect(event.body.start.dateTime).toContain('2027-03-20T12:00');
-  expect(event.body.end.dateTime).toContain('2027-03-20T13:30');
+  // Compare instants: the Google client writes the time in the JVM's zone, which is UTC in CI.
+  expect(new Date(event.body.start.dateTime).toISOString()).toBe(new Date('2027-03-20T12:00:00+01:00').toISOString());
+  expect(new Date(event.body.end.dateTime).toISOString()).toBe(new Date('2027-03-20T13:30:00+01:00').toISOString());
   expect(await sentRequests(request, 'POST', '/tasks/v1/lists/@default/tasks')).toHaveLength(0);
 });
